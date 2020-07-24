@@ -69,7 +69,7 @@ public abstract class AbstractJob implements Job {
     }
 
     protected String getJobPrefix() {
-        if (HeraGlobalEnv.isEmrJob() || HeraGlobalEnv.getSystemEnum() == OperatorSystemEnum.MAC) {
+        if (HeraGlobalEnv.isEmrJob() || HeraGlobalEnv.getSystemEnum() == OperatorSystemEnum.MAC || !HeraGlobalEnv.isSudoUser()) {
             return " ";
         }
         String user = getUser();
