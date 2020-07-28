@@ -49,6 +49,7 @@
 
     <!-- 如果要新增protoc类型 可去掉以下注释 编译生成protoc类-->
 
+    <!--
      <build>
          <extensions>
              <extension>
@@ -85,5 +86,6 @@
              </plugin>
          </plugins>
      </build>
+     -->
 
 </project>
