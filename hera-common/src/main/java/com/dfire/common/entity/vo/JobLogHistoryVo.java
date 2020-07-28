@@ -3,7 +3,6 @@ package com.dfire.common.entity.vo;
 import lombok.Data;
 
 /**
- *
  * @author xiaosuda
  * @date 2019/1/24
  */
@@ -28,22 +27,22 @@ public class JobLogHistoryVo {
 
     private String illustrate;
 
-    private int triggerType;
-    
+    private String triggerType;
+
     private String batchId;
 
     private String bizLabel;
-    
+
     private String jobName;
-    
+
     private String description;
-    
+
     private String groupId;
-    
+
     private String groupName;
-    
+
     private String dur240px;
-    
+
     private String begintime240px;
 
 }

@@ -7,11 +7,9 @@ import com.dfire.common.entity.*;
 import com.dfire.common.entity.model.JsonResponse;
 import com.dfire.common.entity.model.TablePageForm;
 import com.dfire.common.entity.model.TableResponse;
-import com.dfire.common.entity.vo.HeraActionVo;
-import com.dfire.common.entity.vo.HeraGroupVo;
-import com.dfire.common.entity.vo.HeraJobVo;
-import com.dfire.common.entity.vo.PageHelperTimeRange;
+import com.dfire.common.entity.vo.*;
 import com.dfire.common.enums.*;
+import com.dfire.common.exception.HeraException;
 import com.dfire.common.exception.NoPermissionException;
 import com.dfire.common.service.*;
 import com.dfire.common.util.*;
@@ -26,6 +24,7 @@ import com.dfire.logs.MonitorLog;
 import com.dfire.protocol.JobExecuteKind;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+
 import org.apache.commons.lang3.StringUtils;
 import org.quartz.CronExpression;
 import org.springframework.aop.framework.AopContext;
@@ -308,19 +307,17 @@ public class ScheduleCenterController extends BaseHeraController {
      */
     @RequestMapping(value = "/manual", method = RequestMethod.GET)
     @ResponseBody
-    public JsonResponse execute(@JsonSerialize(using = ToStringSerializer.class) Long actionId, Integer triggerType, @RequestParam(required = false) String execUser) throws InterruptedException, ExecutionException {
+    public JsonResponse execute(@JsonSerialize(using = ToStringSerializer.class) Long actionId, Integer triggerType, @RequestParam(required = false) String execUser) throws InterruptedException, ExecutionException, HeraException {
         if (execUser == null) {
             checkPermission(ActionUtil.getJobId(actionId), RunAuthType.JOB);
         }
-        TriggerTypeEnum triggerTypeEnum;
-        if (triggerType == 3) {
-            triggerTypeEnum = TriggerTypeEnum.MANUAL_RECOVER;
-        } else {
-            triggerTypeEnum = TriggerTypeEnum.MANUAL;
+        TriggerTypeEnum triggerTypeEnum = TriggerTypeEnum.parser(triggerType);
+        if (triggerTypeEnum == null) {
+            return new JsonResponse(false, " 无法识别的触发类型，请联系管理员");
         }
+
         HeraAction heraAction = heraJobActionService.findById(actionId);
         HeraJob heraJob = heraJobService.findById(heraAction.getJobId());
-
         if (execUser == null) {
             execUser = super.getSsoName();
         }
@@ -338,6 +335,7 @@ public class ScheduleCenterController extends BaseHeraController {
         actionHistory.setStatisticEndTime(heraAction.getStatisticEndTime());
         actionHistory.setHostGroupId(heraAction.getHostGroupId());
         actionHistory.setProperties(configs);
+        actionHistory.setStartTime(new Date());
         actionHistory.setBatchId(heraAction.getBatchId());
         actionHistory.setBizLabel(heraJob.getBizLabel());
         heraJobHistoryService.insert(actionHistory);
@@ -352,10 +350,9 @@ public class ScheduleCenterController extends BaseHeraController {
         String ownerId = getOwnerId();
         if (ownerId == null) {
             ownerId = "0";
+            addJobRecord(heraJob.getId(), String.valueOf(actionId), RecordTypeEnum.Execute, execUser, ownerId);
         }
-        addJobRecord(heraJob.getId(), String.valueOf(actionId), RecordTypeEnum.Execute, execUser, ownerId);
-
-        return new JsonResponse(true, actionId);
+        return new JsonResponse(true, String.valueOf(actionId));
     }
 
     @RequestMapping(value = "/getJobVersion", method = RequestMethod.GET)
@@ -434,20 +431,25 @@ public class ScheduleCenterController extends BaseHeraController {
                 List<HeraJob> relation = heraJobService.getAllJobDependencies();
 
                 DagLoopUtil dagLoopUtil = new DagLoopUtil(heraJobService.selectMaxId());
-                relation.forEach(x -> {
+
+                for (HeraJob job : relation) {
                     String dependencies;
-                    if (x.getId() == newJob.getId()) {
+                    if (job.getId() == newJob.getId()) {
                         dependencies = newJob.getDependencies();
                     } else {
-                        dependencies = x.getDependencies();
+                        dependencies = job.getDependencies();
                     }
                     if (StringUtils.isNotBlank(dependencies)) {
                         String[] split = dependencies.split(",");
                         for (String s : split) {
-                            dagLoopUtil.addEdge(x.getId(), Integer.parseInt(s));
+                            HeraJob memById = heraJobService.findMemById(Integer.parseInt(s));
+                            if (memById == null) {
+                                return new JsonResponse(false, "依赖任务:" + s + "不存在");
+                            }
+                            dagLoopUtil.addEdge(job.getId(), Integer.parseInt(s));
                         }
                     }
-                });
+                }
 
                 if (dagLoopUtil.isLoop()) {
                     return new JsonResponse(false, "出现环形依赖，请检测依赖关系:" + dagLoopUtil.getLoop());
@@ -474,7 +476,7 @@ public class ScheduleCenterController extends BaseHeraController {
             }
             //定时表达式更新
             if (!memJob.getCronExpression().equals(newJob.getCronExpression())) {
-                addJobRecord(newJob.getId(), memJob.getScript(), RecordTypeEnum.CRON, ssoName, ownerId);
+                addJobRecord(newJob.getId(), memJob.getCronExpression(), RecordTypeEnum.CRON, ssoName, ownerId);
             }
             //执行区域更新
             if (!memJob.getAreaId().equals(newJob.getAreaId())) {
@@ -543,17 +545,19 @@ public class ScheduleCenterController extends BaseHeraController {
         heraJob.setScheduleType(JobScheduleTypeEnum.Independent.getType());
         int insert = heraJobService.insert(heraJob);
         if (insert > 0) {
-            String ssoName = getSsoName();
-            String ownerId = getOwnerId();
-            MonitorLog.info("{}[{}]【添加】任务{}成功", heraJob.getOwner(), ssoName, heraJob.getId());
-            updateMonitor(heraJob.getId());
-            doAsync(() -> addJobRecord(heraJob.getId(), heraJob.getName(), RecordTypeEnum.Add, ssoName, ownerId));
+            addJobRecord(heraJob);
             return new JsonResponse(true, String.valueOf(heraJob.getId()));
         } else {
             return new JsonResponse(false, "新增失败");
         }
     }
-
+    private void addJobRecord(HeraJob heraJob) {
+        String ssoName = getSsoName();
+        String ownerId = getOwnerId();
+        MonitorLog.info("{}[{}]【添加】任务{}成功", heraJob.getOwner(), ssoName, heraJob.getId());
+        updateMonitor(heraJob.getId());
+        doAsync(() -> addJobRecord(heraJob.getId(), heraJob.getName(), RecordTypeEnum.Add, ssoName, ownerId));
+    }
     @RequestMapping(value = "/addMonitor", method = RequestMethod.POST)
     @ResponseBody
     public JsonResponse updateMonitor(Integer id) {
@@ -756,7 +760,7 @@ public class ScheduleCenterController extends BaseHeraController {
     @RequestMapping(value = "/execute", method = RequestMethod.GET)
     @ResponseBody
     @UnCheckLogin
-    public JsonResponse publicExecute(@RequestParam Map<String, String> params) throws ExecutionException, InterruptedException, NoPermissionException {
+    public JsonResponse publicExecute(@RequestParam Map<String, String> params) throws ExecutionException, InterruptedException, NoPermissionException, HeraException {
         String secret = params.get("secret");
         String decrypt = PasswordUtils.aesDecrypt(secret);
         if (decrypt == null) {
@@ -783,7 +787,7 @@ public class ScheduleCenterController extends BaseHeraController {
     @RequestMapping(value = "/status/{jobId}", method = RequestMethod.GET)
     @ResponseBody
     @UnCheckLogin
-    public JsonResponse getStatus(@PathVariable("jobId") Long jobId, @RequestParam("time") long time) {
+    public JsonResponse getStatus(@PathVariable("jobId") Integer jobId, @RequestParam("time") long time) {
         HeraJobHistory history = heraJobHistoryService.findNewest(jobId);
         if (history == null) {
             return new JsonResponse(false, "无执行记录");
@@ -793,7 +797,7 @@ public class ScheduleCenterController extends BaseHeraController {
             return new JsonResponse(true, StatusEnum.RUNNING.toString());
         }
 
-        if (history.getStartTime().getTime() < time) {
+        if (history.getStartTime() != null && history.getStartTime().getTime() < time) {
             return new JsonResponse(false, "无执行记录");
         }
         return new JsonResponse(true, Optional.ofNullable(history.getStatus()).orElse(StatusEnum.RUNNING.toString()));
@@ -1056,16 +1060,14 @@ public class ScheduleCenterController extends BaseHeraController {
             info = "手动强制运行中状态";
         }
 
-
         String illustrate = heraJobHistoryService.findById(jobHisId).getIllustrate();
         if (StringUtils.isNotBlank(illustrate)) {
             illustrate += ";" + info;
         } else {
             illustrate = info;
         }
-
         heraJobHistoryService.updateStatusAndIllustrate(jobHisId, status, illustrate, new Date());
-        return null;
+        return new JsonResponse(true,"修改状态成功");
     }
 
 

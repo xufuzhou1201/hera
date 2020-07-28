@@ -72,7 +72,7 @@ public class MasterRunJob implements RunJob {
         RpcResponse.Response response = null;
         Future<RpcResponse.Response> future = null;
         try {
-            future = new MasterExecuteJob().executeJob(masterContext, selectWork, JobExecuteKind.ExecuteKind.DebugKind, debugId);
+            future = new MasterExecuteJob().executeJob(masterContext, selectWork, TriggerTypeEnum.DEBUG, debugId);
             response = future.get(HeraGlobalEnv.getTaskTimeout(), TimeUnit.HOURS);
         } catch (Exception e) {
             exception = e;
@@ -108,7 +108,7 @@ public class MasterRunJob implements RunJob {
      * @param selectWork selectWork 所选机器
      * @param actionId   actionId
      */
-    private void runManualJob(MasterWorkHolder selectWork, Long actionId) {
+    private void runManualJob(MasterWorkHolder selectWork, Long actionId, TriggerTypeEnum triggerType) {
         SocketLog.info("start run manual job, actionId = {}", actionId);
         HeraAction heraAction = masterContext.getHeraJobActionService().findById(actionId);
         HeraJobHistory history = masterContext.getHeraJobHistoryService().findById(heraAction.getHistoryId());
@@ -128,7 +128,7 @@ public class MasterRunJob implements RunJob {
         Future<RpcResponse.Response> future = null;
         try {
             future = new MasterExecuteJob().executeJob(masterContext, selectWork,
-                    JobExecuteKind.ExecuteKind.ManualKind, actionId);
+                    triggerType, actionId);
             response = future.get();
         } catch (Exception e) {
             exception = e;
@@ -171,10 +171,11 @@ public class MasterRunJob implements RunJob {
     /**
      * 调度任务执行前，先获取任务的执行重试时间间隔和重试次数
      *
-     * @param selectWork 所选机器
-     * @param actionId   actionId
+     * @param selectWork  所选机器
+     * @param actionId    actionId
+     * @param triggerType
      */
-    private void runScheduleJob(MasterWorkHolder selectWork, Long actionId) {
+    private void runScheduleJob(MasterWorkHolder selectWork, Long actionId, TriggerTypeEnum triggerType) {
         int runCount = 0;
         int retryCount = 0;
         int retryWaitTime = 1;
@@ -184,7 +185,7 @@ public class MasterRunJob implements RunJob {
             retryCount = Integer.parseInt(properties.get("roll.back.times") == null ? "0" : properties.get("roll.back.times"));
             retryWaitTime = Integer.parseInt(properties.get("roll.back.wait.time") == null ? "0" : properties.get("roll.back.wait.time"));
         }
-        runScheduleJobContext(selectWork, actionId, runCount, retryCount, retryWaitTime);
+        runScheduleJobContext(selectWork, actionId, runCount, retryCount, retryWaitTime, triggerType);
     }
 
     /**
@@ -195,8 +196,9 @@ public class MasterRunJob implements RunJob {
      * @param runCount      runCount
      * @param retryCount    retryCount
      * @param retryWaitTime retryWaitTime
+     * @param triggerType
      */
-    private void runScheduleJobContext(MasterWorkHolder selectWork, Long actionId, int runCount, int retryCount, int retryWaitTime) {
+    private void runScheduleJobContext(MasterWorkHolder selectWork, Long actionId, int runCount, int retryCount, int retryWaitTime, TriggerTypeEnum triggerType) {
         DebugLog.info("重试次数：{},重试时间：{},actionId:{}", retryCount, retryWaitTime, actionId);
         runCount++;
         boolean isCancelJob = false;
@@ -210,12 +212,25 @@ public class MasterRunJob implements RunJob {
             if (master.checkJobExists(HeraJobHistoryVo.builder()
                             .actionId(actionId)
                             .jobId(memJob.getId())
-                            .triggerType(TriggerTypeEnum.SCHEDULE)
+                            .triggerType(triggerType)
                             .build()
                     , true)) {
                 ScheduleLog.info("--------------------------{}正在执行，取消重试--------------------------", actionId);
                 return;
             }
+            HeraJobHistory lastHistory = masterContext.getHeraJobHistoryService().findNewest(ActionUtil.getJobId(actionId));
+            boolean checkCancel = lastHistory.getActionId().equals(actionId) &&
+                    (lastHistory.getTriggerType().equals(TriggerTypeEnum.MANUAL_RECOVER.getId())
+                            || lastHistory.getTriggerType().equals(TriggerTypeEnum.SCHEDULE.getId()));
+            //判断是否为同一个版本，且为手动恢复
+            if (checkCancel) {
+                //如果有正在执行的，或已经完成 取消重试
+                if (StatusEnum.RUNNING.toString().equals(lastHistory.getStatus()) || StatusEnum.SUCCESS.toString().equals(lastHistory.getStatus())) {
+                    ScheduleLog.info(String.format("cancel job  {} retry, there is another task running or success", actionId));
+                    return;
+                }
+            }
+
             DebugLog.info("任务重试，睡眠：{}分钟", retryWaitTime);
             try {
                 TimeUnit.MINUTES.sleep(retryWaitTime);
@@ -225,7 +240,6 @@ public class MasterRunJob implements RunJob {
         }
         HeraJobHistoryVo heraJobHistoryVo;
         HeraJobHistory heraJobHistory;
-        TriggerTypeEnum triggerType;
         HeraAction heraAction;
         if (runCount == 1) {
             heraAction = masterContext.getHeraJobActionService().findById(actionId);
@@ -267,7 +281,7 @@ public class MasterRunJob implements RunJob {
         Future<RpcResponse.Response> future = null;
         try {
             future = new MasterExecuteJob().executeJob(masterContext, selectWork,
-                    JobExecuteKind.ExecuteKind.ScheduleKind, actionId);
+                    triggerType, actionId);
             response = future.get(HeraGlobalEnv.getTaskTimeout(), TimeUnit.HOURS);
         } catch (Exception e) {
             ErrorLog.error("schedule job run error :" + actionId, e);
@@ -280,19 +294,18 @@ public class MasterRunJob implements RunJob {
         }
         boolean success = response != null && response.getStatusEnum() == ResponseStatus.Status.OK;
         ScheduleLog.info("job_id 执行结果" + actionId + "---->" + (response == null ? "空指针" : response.getStatusEnum().toString()));
+        ApplicationEvent event;
         if (!success) {
             heraAction.setStatus(StatusEnum.FAILED.toString());
             HeraJobHistory history = masterContext.getHeraJobHistoryService().findById(heraJobHistoryVo.getId());
             HeraJobHistoryVo jobHistory = BeanConvertUtils.convert(history);
-            HeraJobFailedEvent event = new HeraJobFailedEvent(actionId, triggerType, jobHistory);
-            event.setRollBackTime(retryWaitTime);
-            event.setRunCount(runCount);
-            event.setRetryCount(retryCount);
+            event = new HeraJobFailedEvent(actionId, triggerType, jobHistory);
+            ((HeraJobFailedEvent) event).setRollBackTime(retryWaitTime);
+            ((HeraJobFailedEvent) event).setRunCount(runCount);
+            ((HeraJobFailedEvent) event).setRetryCount(retryCount);
             if (Constants.CANCEL_JOB_MESSAGE.equals(jobHistory.getIllustrate()) || StatusEnum.WAIT.toString().equals(history.getStatus())) {
                 isCancelJob = true;
                 ScheduleLog.info("任务取消或者暂停，取消重试:{}", jobHistory.getActionId());
-            } else {
-                masterContext.getDispatcher().forwardEvent(event);
             }
         } else {
             //如果是依赖任务 置空依赖
@@ -300,17 +313,15 @@ public class MasterRunJob implements RunJob {
                 heraAction.setReadyDependency("{}");
             }
             heraAction.setStatus(StatusEnum.SUCCESS.toString());
-            HeraJobSuccessEvent successEvent = new HeraJobSuccessEvent(actionId, triggerType, heraJobHistoryVo);
-            masterContext.getDispatcher().forwardEvent(successEvent);
+            event = new HeraJobSuccessEvent(actionId, triggerType, heraJobHistoryVo);
         }
-
         updateCacheAction(actionId, heraAction.getStatus());
         heraAction.setStatisticEndTime(new Date());
         masterContext.getHeraJobActionService().update(heraAction);
+        masterContext.getDispatcher().forwardEvent(event);
         if (runCount < (retryCount + 1) && !success && !isCancelJob) {
             DebugLog.info("--------------------------失败任务，准备重试--------------------------");
-            runScheduleJobContext(selectWork, actionId, runCount, retryCount, retryWaitTime);
-
+            runScheduleJobContext(selectWork, actionId, runCount, retryCount, retryWaitTime, triggerType);
         }
     }
 
@@ -353,11 +364,13 @@ public class MasterRunJob implements RunJob {
     public void run(MasterWorkHolder workHolder, JobElement element) {
         switch (element.getTriggerType()) {
             case SCHEDULE:
+            case SUPER_RECOVER:
             case MANUAL_RECOVER:
-                executeJobPool.execute(() -> runScheduleJob(workHolder, element.getJobId()), element);
+                executeJobPool.execute(() -> runScheduleJob(workHolder, element.getJobId(), element.getTriggerType()), element);
                 break;
             case MANUAL:
-                executeJobPool.execute(() -> runManualJob(workHolder, element.getJobId()), element);
+            case AUTO_RERUN:
+                executeJobPool.execute(() -> runManualJob(workHolder, element.getJobId(), element.getTriggerType()), element);
                 break;
             case DEBUG:
                 executeJobPool.execute(() -> runDebugJob(workHolder, element.getJobId()), element);
@@ -366,5 +379,9 @@ public class MasterRunJob implements RunJob {
                 ErrorLog.error("未知的执行类型:" + element.getTriggerType().toString());
                 break;
         }
+    }
+
+    public Integer getRunningTaskNum() {
+        return executeJobPool.getActiveCount();
     }
 }

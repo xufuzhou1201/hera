@@ -82,6 +82,15 @@ public interface HeraJobHistoryMapper {
     Integer updateHeraJobHistoryLogAndStatus(HeraJobHistory heraJobHistory);
 
     /**
+     * 更新properties
+     *
+     * @param heraJobHistory
+     * @return
+     */
+    @Update("update hera_action_history set properties = #{properties} where id = #{id}")
+    Integer updateHeraJobHistoryProperties(HeraJobHistory heraJobHistory);
+
+    /**
      * 根据jobId查询运行历史
      *
      * @param jobId
@@ -181,9 +190,35 @@ public interface HeraJobHistoryMapper {
     Integer deleteHistoryRecord(Integer beforeDay);
 
     @Select("select * from hera_action_history where job_id = #{jobId} order by id desc limit 1")
-    HeraJobHistory findNewest(Long jobId);
+    HeraJobHistory findNewest(Integer jobId);
 
 
     @Select("select id,job_id,properties from hera_action_history where id = #{id}")
     HeraJobHistory findPropertiesBy(Long id);
+
+
+    @Select("select action_id,start_time,end_time from hera_action_history " +
+            "where action_id >#{action_id} and job_id = #{jobId}  and status='failed' and json_extract(properties,'$.rerun_id')=#{rerunId} limit #{startPos},#{limit} ")
+    List<HeraJobHistory> findRerunFailed(@Param("jobId") Integer jobId,
+                                         @Param("rerunId") String rerunId,
+                                         @Param("action_id") long actionId,
+                                         @Param("startPos") Integer startPos,
+                                         @Param("limit") Integer limit);
+
+
+    @Select("select action_id,host_group_id,operator from hera_action_history " +
+            "where action_id>#{lastId} and job_id = #{jobId} and status='failed' and json_extract(properties,'$.rerun_id')=#{rerunId} order by id limit #{limit} ")
+    List<HeraJobHistory> findRerunFailedIdsByLimit(@Param("lastId") Long lastId,
+                                                   @Param("jobId") Integer jobId,
+                                                   @Param("rerunId") String rerunId,
+                                                   @Param("limit") Integer limit);
+
+    @Select("select job_id,start_time,end_time,status from hera_action_history where action_id >= #{date} * 10000000000 && action_id < (#{date}+1) * 10000000000")
+    List<HeraJobHistory> findJobHistoryLimitDate(@Param("date") Integer date);
+
+    @Select("select count(1) from hera_action_history " +
+            "where action_id >#{action_id} and job_id = #{jobId} and status='failed' and json_extract(properties,'$.rerun_id')=#{rerunId} ")
+    Integer findRerunFailedCount(@Param("jobId") Integer jobId,
+                                 @Param("rerunId") String rerunId,
+                                 @Param("action_id") long actionId);
 }

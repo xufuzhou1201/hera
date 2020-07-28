@@ -19,6 +19,7 @@ import com.dfire.event.Events;
 import com.dfire.event.HeraJobMaintenanceEvent;
 import com.dfire.logs.ErrorLog;
 import com.dfire.logs.HeraLog;
+import com.dfire.logs.SocketLog;
 import com.dfire.logs.TaskLog;
 import com.dfire.protocol.JobExecuteKind.ExecuteKind;
 import com.dfire.protocol.*;
@@ -28,6 +29,7 @@ import com.dfire.protocol.RpcHeartBeatMessage.HeartBeatMessage;
 import com.dfire.protocol.RpcWebOperate.WebOperate;
 import com.dfire.protocol.RpcWebRequest.WebRequest;
 import com.dfire.protocol.RpcWebResponse.WebResponse;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
@@ -166,6 +168,7 @@ public class MasterHandlerWebResponse {
             case ManualKind:
             case DebugKind:
             case ScheduleKind:
+            case AutoRerunKind:
                 return MasterCancelJob.cancel(request.getEk(), context, request);
             default:
                 return WebResponse.newBuilder()
@@ -192,9 +195,10 @@ public class MasterHandlerWebResponse {
             HeartBeatInfo beatInfo = workHolder.getHeartBeatInfo();
             if (beatInfo != null) {
                 allInfo.put(Constants.WORK_PREFIX + beatInfo.getHost(), HeartBeatMessage.newBuilder()
-                        .addAllDebugRunnings(beatInfo.getDebugRunning())
-                        .addAllRunnings(beatInfo.getRunning())
-                        .addAllManualRunnings(beatInfo.getManualRunning())
+                        .addAllDebugRunning(beatInfo.getDebugRunning())
+                        .addAllRunning(beatInfo.getRunning())
+                        .addAllManualRunning(beatInfo.getManualRunning())
+                        .addAllRerunRunning(beatInfo.getRerunRunning())
                         .setMemRate(beatInfo.getMemRate())
                         .setMemTotal(beatInfo.getMemTotal())
                         .setCpuLoadPerCore(beatInfo.getCpuLoadPerCore())
@@ -214,17 +218,27 @@ public class MasterHandlerWebResponse {
         masterDebugQueue.addAll(waitDebugQueue);
         //自动任务队列
 
-        List<Long> waitScheduleQueue = RunJobThreadPool.getWaitClusterJob(TriggerTypeEnum.SCHEDULE, TriggerTypeEnum.MANUAL_RECOVER);
-        List<Long> masterScheduleQueue = new ArrayList<>(waitScheduleQueue.size() + context.getScheduleQueue().size());
-        masterScheduleQueue.addAll(waitScheduleQueue);
+        waitDebugQueue = RunJobThreadPool.getWaitClusterJob(TriggerTypeEnum.SCHEDULE, TriggerTypeEnum.MANUAL_RECOVER);
+        List<Long> masterScheduleQueue = new ArrayList<>(waitDebugQueue.size() + context.getScheduleQueue().size());
+        masterScheduleQueue.addAll(waitDebugQueue);
         context.getScheduleQueue().forEach(jobElement -> masterScheduleQueue.add(jobElement.getJobId()));
 
         //手动任务队列
-        List<Long> waitManualQueue = RunJobThreadPool.getWaitClusterJob(TriggerTypeEnum.MANUAL);
-        List<Long> masterManualQueue = new ArrayList<>(waitManualQueue.size() + context.getManualQueue().size());
-        masterManualQueue.addAll(waitManualQueue);
+        waitDebugQueue = RunJobThreadPool.getWaitClusterJob(TriggerTypeEnum.MANUAL);
+        List<Long> masterManualQueue = new ArrayList<>(waitDebugQueue.size() + context.getManualQueue().size());
+        masterManualQueue.addAll(waitDebugQueue);
         context.getManualQueue().forEach(jobElement -> masterManualQueue.add(jobElement.getJobId()));
 
+        //重跑任务队列
+        waitDebugQueue = RunJobThreadPool.getWaitClusterJob(TriggerTypeEnum.AUTO_RERUN);
+        List<Long> masterRerunQueue = new ArrayList<>(waitDebugQueue.size() + context.getRerunQueue().size());
+        masterRerunQueue.addAll(waitDebugQueue);
+        context.getRerunQueue().forEach(jobElement -> masterRerunQueue.add(jobElement.getJobId()));
+        //超级恢复队列
+        waitDebugQueue = RunJobThreadPool.getWaitClusterJob(TriggerTypeEnum.SUPER_RECOVER);
+        List<Long> masterSuperRecoveryQueue = new ArrayList<>(waitDebugQueue.size() + context.getSuperRecovery().size());
+        masterSuperRecoveryQueue.addAll(waitDebugQueue);
+        context.getSuperRecovery().forEach(jobElement -> masterSuperRecoveryQueue.add(jobElement.getJobId()));
 
         MemUseRateJob memUseRateJob = new MemUseRateJob(1);
         memUseRateJob.readMemUsed();
@@ -232,9 +246,11 @@ public class MasterHandlerWebResponse {
         loadPerCoreJob.run();
 
         allInfo.put(Constants.MASTER_PREFIX + WorkContext.host, HeartBeatMessage.newBuilder()
-                .addAllDebugRunnings(masterDebugQueue.stream().map(String::valueOf).collect(Collectors.toList()))
-                .addAllRunnings(masterScheduleQueue.stream().map(String::valueOf).collect(Collectors.toList()))
-                .addAllManualRunnings(masterManualQueue.stream().map(String::valueOf).collect(Collectors.toList()))
+                .addAllDebugRunning(masterDebugQueue.stream().map(String::valueOf).collect(Collectors.toList()))
+                .addAllRunning(masterScheduleQueue.stream().map(String::valueOf).collect(Collectors.toList()))
+                .addAllManualRunning(masterManualQueue.stream().map(String::valueOf).collect(Collectors.toList()))
+                .addAllRerunRunning(masterRerunQueue.stream().map(String::valueOf).collect(Collectors.toList()))
+                .addAllSuperRunning(masterSuperRecoveryQueue.stream().map(String::valueOf).collect(Collectors.toList()))
                 .setMemRate(memUseRateJob.getRate())
                 .setMemTotal(memUseRateJob.getMemTotal())
                 .setCpuLoadPerCore(loadPerCoreJob.getLoadPerCore())

@@ -31,6 +31,14 @@ public final class JobExecuteKind {
      * <code>DebugKind = 2;</code>
      */
     DebugKind(2),
+    /**
+     * <code>AutoRerunKind = 3;</code>
+     */
+    AutoRerunKind(3),
+    /**
+     * <code>SuperRecoveryKind = 4;</code>
+     */
+    SuperRecoveryKind(4),
     UNRECOGNIZED(-1),
     ;
 
@@ -46,6 +54,14 @@ public final class JobExecuteKind {
      * <code>DebugKind = 2;</code>
      */
     public static final int DebugKind_VALUE = 2;
+    /**
+     * <code>AutoRerunKind = 3;</code>
+     */
+    public static final int AutoRerunKind_VALUE = 3;
+    /**
+     * <code>SuperRecoveryKind = 4;</code>
+     */
+    public static final int SuperRecoveryKind_VALUE = 4;
 
 
     public final int getNumber() {
@@ -69,6 +85,8 @@ public final class JobExecuteKind {
         case 0: return ScheduleKind;
         case 1: return ManualKind;
         case 2: return DebugKind;
+        case 3: return AutoRerunKind;
+        case 4: return SuperRecoveryKind;
         default: return null;
       }
     }
@@ -130,10 +148,11 @@ public final class JobExecuteKind {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\022execute_kind.proto*>\n\013ExecuteKind\022\020\n\014S" +
+      "\n\022execute_kind.proto*h\n\013ExecuteKind\022\020\n\014S" +
       "cheduleKind\020\000\022\016\n\nManualKind\020\001\022\r\n\tDebugKi" +
-      "nd\020\002B&\n\022com.dfire.protocolB\016JobExecuteKi" +
-      "ndH\001b\006proto3"
+      "nd\020\002\022\021\n\rAutoRerunKind\020\003\022\025\n\021SuperRecovery" +
+      "Kind\020\004B&\n\022com.dfire.protocolB\016JobExecute" +
+      "KindH\001b\006proto3"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
         new com.google.protobuf.Descriptors.FileDescriptor.    InternalDescriptorAssigner() {

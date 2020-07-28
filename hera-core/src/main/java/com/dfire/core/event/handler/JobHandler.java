@@ -35,6 +35,7 @@ import org.apache.commons.lang.StringUtils;
 import org.quartz.*;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -124,7 +125,7 @@ public class JobHandler extends AbstractHandler {
                             JobContext tmp = JobContext.getTempJobContext(JobContext.MANUAL_RUN);
                             tmp.setHeraJobHistory(BeanConvertUtils.convert(jobHistory));
                             new CancelHadoopJob(tmp).run();
-                            startNewJob(BeanConvertUtils.transform(heraAction), LogConstant.SERVER_START_JOB_LOG);
+                            startNewJob(BeanConvertUtils.transform(heraAction), LogConstant.SERVER_START_JOB_LOG, TriggerTypeEnum.SCHEDULE);
                         } catch (Exception e) {
                             ErrorLog.error("取消任务异常", e);
                         }
@@ -134,7 +135,7 @@ public class JobHandler extends AbstractHandler {
                     jobHistory.setEndTime(new Date());
                     jobHistoryService.update(jobHistory);
                 } else {
-                    startNewJob(BeanConvertUtils.transform(heraAction), LogConstant.SERVER_START_JOB_LOG);
+                    startNewJob(BeanConvertUtils.transform(heraAction), LogConstant.SERVER_START_JOB_LOG, TriggerTypeEnum.SCHEDULE);
                 }
             }
         }
@@ -165,7 +166,7 @@ public class JobHandler extends AbstractHandler {
      * @param event
      */
     private void handleSuccessEvent(HeraJobSuccessEvent event) {
-        if (event.getTriggerType() == TriggerTypeEnum.MANUAL) {
+        if (event.getTriggerType() == TriggerTypeEnum.MANUAL || event.getTriggerType() == TriggerTypeEnum.AUTO_RERUN) {
             return;
         }
         Long jobId = event.getJobId();
@@ -174,35 +175,52 @@ public class JobHandler extends AbstractHandler {
             autoRecovery();
             return;
         }
-        if (!heraActionVo.getAuto()) {
+
+        if (!heraActionVo.getAuto() || jobId.equals(heraActionVo.getId())) {
             return;
         }
         if (heraActionVo.getScheduleType() == JobScheduleTypeEnum.Independent) {
             return;
         }
+        //依赖的任务包含该广播的任务ID
         if (heraActionVo.getDependencies() == null || !heraActionVo.getDependencies().contains(jobId)) {
             return;
         }
         JobStatus jobStatus;
-        //必须同步
-        synchronized (this) {
-            jobStatus = heraJobActionService.findJobStatus(actionId);
-            ScheduleLog.info(actionId + "received a success dependency job with actionId = " + jobId);
-            jobStatus.getReadyDependency().put(String.valueOf(jobId), String.valueOf(System.currentTimeMillis()));
-            heraJobActionService.updateStatus(jobStatus);
-        }
-        boolean allComplete = true;
-        for (Long key : heraActionVo.getDependencies()) {
-            if (jobStatus.getReadyDependency().get(String.valueOf(key)) == null) {
-                allComplete = false;
-                break;
+
+        //如果是超级恢复
+        if (event.getTriggerType() == TriggerTypeEnum.SUPER_RECOVER) {
+            List<Long> dependencies = heraActionVo.getDependencies();
+            for (Long depId : dependencies) {
+                HeraAction action = master.getHeraActionMap().get(depId);
+                if (action != null && StatusEnum.RUNNING.toString().equals(action.getStatus())) {
+                    ScheduleLog.info(String.format("{} is running,cancel job {}  super recovery", depId, heraActionVo.getId()));
+                    return;
+                }
             }
-        }
-        if (allComplete) {
-            ScheduleLog.info("JobId:" + actionId + " all dependency jobs is ready,run!");
-            startNewJob(heraActionVo, LogConstant.DEPENDENT_READY_LOG);
-        } else {
-            ScheduleLog.info(actionId + "some of dependency is not ready, waiting" + JSONObject.toJSONString(jobStatus.getReadyDependency().keySet()));
+            startNewJob(heraActionVo, LogConstant.SUPER_RECOVER_LOG, TriggerTypeEnum.SUPER_RECOVER);
+
+        } else if (event.getTriggerType() == TriggerTypeEnum.SCHEDULE || event.getTriggerType() == TriggerTypeEnum.MANUAL_RECOVER) {
+            //必须同步
+            synchronized (this) {
+                jobStatus = heraJobActionService.findJobStatus(actionId);
+                ScheduleLog.info(actionId + "received a success dependency job with actionId = " + jobId);
+                jobStatus.getReadyDependency().put(String.valueOf(jobId), String.valueOf(System.currentTimeMillis()));
+                heraJobActionService.updateStatus(jobStatus);
+            }
+            boolean allComplete = true;
+            for (Long key : heraActionVo.getDependencies()) {
+                if (jobStatus.getReadyDependency().get(String.valueOf(key)) == null) {
+                    allComplete = false;
+                    break;
+                }
+            }
+            if (allComplete) {
+                ScheduleLog.info("JobId:" + actionId + " all dependency jobs is ready,run!");
+                startNewJob(heraActionVo, LogConstant.DEPENDENT_READY_LOG, TriggerTypeEnum.SCHEDULE);
+            } else {
+                ScheduleLog.info(actionId + "some of dependency is not ready, waiting" + JSONObject.toJSONString(jobStatus.getReadyDependency().keySet()));
+            }
         }
     }
 
@@ -218,20 +236,20 @@ public class JobHandler extends AbstractHandler {
      * @param event
      */
     public void handleTriggerEvent(HeraScheduleTriggerEvent event) {
-        Long jobId = event.getActionId();
+        Long actionId = event.getActionId();
         HeraActionVo heraActionVo = cache.getHeraActionVo();
         if (heraActionVo == null) {
             autoRecovery();
             return;
         }
-        if (!jobId.equals(heraActionVo.getId())) {
+        if (!actionId.equals(heraActionVo.getId())) {
             return;
         }
-        startNewJob(heraActionVo, "自动调度");
+        startNewJob(heraActionVo, "自动调度", TriggerTypeEnum.SCHEDULE);
     }
 
 
-    private void startNewJob(HeraActionVo heraActionVo, String illustrate) {
+    private void startNewJob(HeraActionVo heraActionVo, String illustrate, TriggerTypeEnum triggerTypeEnum) {
         HeraJob heraJob = masterContext.getHeraJobService().findById(heraActionVo.getJobId());
         if (!master.checkJobRun(heraJob)) {
             return;
@@ -240,7 +258,7 @@ public class JobHandler extends AbstractHandler {
                 actionId(heraActionVo.getId()).
                 illustrate(illustrate).
                 jobId(heraActionVo.getJobId()).
-                triggerType(TriggerTypeEnum.SCHEDULE.getId()).
+                triggerType(triggerTypeEnum.getId()).
                 operator(heraActionVo.getOwner()).
                 hostGroupId(heraActionVo.getHostGroupId()).
                 batchId(heraActionVo.getBatchId()).
@@ -305,7 +323,7 @@ public class JobHandler extends AbstractHandler {
                 HeraAction heraAction = heraJobActionService.findById(actionId);
                 if (heraAction != null && StringUtils.isBlank(heraAction.getStatus()) && heraAction.getAuto() == 1) {
                     if (actionId < Long.parseLong(ActionUtil.getCurrActionVersion())) {
-                        startNewJob(BeanConvertUtils.transform(heraAction), LogConstant.LOST_JOB_LOG);
+                        startNewJob(BeanConvertUtils.transform(heraAction), LogConstant.LOST_JOB_LOG, TriggerTypeEnum.SCHEDULE);
                         ScheduleLog.info("lost job, start schedule :{}", actionId);
                     }
                 }

@@ -12,6 +12,7 @@ import com.dfire.protocol.RpcOperate;
 import com.dfire.protocol.RpcRequest;
 import com.dfire.protocol.RpcSocketMessage;
 
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 /**
@@ -34,9 +35,11 @@ public class WorkerHandlerHeartBeat {
                     .setMemRate(memUseRateJob.getRate())
                     .setCpuLoadPerCore(loadPerCoreJob.getLoadPerCore())
                     .setTimestamp(System.currentTimeMillis())
-                    .addAllDebugRunnings(context.getDebugRunning().keySet().stream().map(String::valueOf).collect(Collectors.toList()))
-                    .addAllManualRunnings(context.getManualRunning().keySet().stream().map(HistoryPair::getActionId).map(String::valueOf).collect(Collectors.toList()))
-                    .addAllRunnings(context.getRunning().keySet().stream().map(HistoryPair::getActionId).map(String::valueOf).collect(Collectors.toList()))
+                    .addAllDebugRunning(context.getDebugRunning().keySet().stream().map(String::valueOf).collect(Collectors.toList()))
+                    .addAllManualRunning(context.getManualRunning().keySet().stream().map(HistoryPair::getActionId).map(String::valueOf).collect(Collectors.toList()))
+                    .addAllRunning(context.getRunning().keySet().stream().map(HistoryPair::getActionId).map(String::valueOf).collect(Collectors.toList()))
+                    .addAllRerunRunning(context.getRerunRunning().keySet().stream().map(HistoryPair::getActionId).map(String::valueOf).collect(Collectors.toList()))
+                    .addAllSuperRunning(context.getSuperRunning().keySet().stream().map(HistoryPair::getActionId).map(String::valueOf).collect(Collectors.toList()))
                     .setCores(WorkContext.cpuCoreNum)
                     .build();
             context.getServerChannel().writeAndFlush(RpcSocketMessage.SocketMessage.newBuilder().

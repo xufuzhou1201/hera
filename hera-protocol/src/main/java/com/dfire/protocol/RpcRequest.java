@@ -95,6 +95,13 @@ public final class RpcRequest {
             case 0:
               done = true;
               break;
+            default: {
+              if (!parseUnknownFieldProto3(
+                  input, unknownFields, extensionRegistry, tag)) {
+                done = true;
+              }
+              break;
+            }
             case 8: {
 
               rid_ = input.readSInt32();
@@ -109,13 +116,6 @@ public final class RpcRequest {
             case 26: {
 
               body_ = input.readBytes();
-              break;
-            }
-            default: {
-              if (!parseUnknownFieldProto3(
-                  input, unknownFields, extensionRegistry, tag)) {
-                done = true;
-              }
               break;
             }
           }
@@ -135,7 +135,6 @@ public final class RpcRequest {
       return com.dfire.protocol.RpcRequest.internal_static_Request_descriptor;
     }
 
-    @java.lang.Override
     protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
         internalGetFieldAccessorTable() {
       return com.dfire.protocol.RpcRequest.internal_static_Request_fieldAccessorTable
@@ -176,7 +175,6 @@ public final class RpcRequest {
      * <code>.Operate operate = 2;</code>
      */
     public com.dfire.protocol.RpcOperate.Operate getOperate() {
-      @SuppressWarnings("deprecation")
       com.dfire.protocol.RpcOperate.Operate result = com.dfire.protocol.RpcOperate.Operate.valueOf(operate_);
       return result == null ? com.dfire.protocol.RpcOperate.Operate.UNRECOGNIZED : result;
     }
@@ -195,7 +193,6 @@ public final class RpcRequest {
     }
 
     private byte memoizedIsInitialized = -1;
-    @java.lang.Override
     public final boolean isInitialized() {
       byte isInitialized = memoizedIsInitialized;
       if (isInitialized == 1) return true;
@@ -205,7 +202,6 @@ public final class RpcRequest {
       return true;
     }
 
-    @java.lang.Override
     public void writeTo(com.google.protobuf.CodedOutputStream output)
                         throws java.io.IOException {
       if (rid_ != 0) {
@@ -220,7 +216,6 @@ public final class RpcRequest {
       unknownFields.writeTo(output);
     }
 
-    @java.lang.Override
     public int getSerializedSize() {
       int size = memoizedSize;
       if (size != -1) return size;
@@ -351,7 +346,6 @@ public final class RpcRequest {
           .parseWithIOException(PARSER, input, extensionRegistry);
     }
 
-    @java.lang.Override
     public Builder newBuilderForType() { return newBuilder(); }
     public static Builder newBuilder() {
       return DEFAULT_INSTANCE.toBuilder();
@@ -359,7 +353,6 @@ public final class RpcRequest {
     public static Builder newBuilder(com.dfire.protocol.RpcRequest.Request prototype) {
       return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
     }
-    @java.lang.Override
     public Builder toBuilder() {
       return this == DEFAULT_INSTANCE
           ? new Builder() : new Builder().mergeFrom(this);
@@ -383,7 +376,6 @@ public final class RpcRequest {
         return com.dfire.protocol.RpcRequest.internal_static_Request_descriptor;
       }
 
-      @java.lang.Override
       protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
           internalGetFieldAccessorTable() {
         return com.dfire.protocol.RpcRequest.internal_static_Request_fieldAccessorTable
@@ -406,7 +398,6 @@ public final class RpcRequest {
                 .alwaysUseFieldBuilders) {
         }
       }
-      @java.lang.Override
       public Builder clear() {
         super.clear();
         rid_ = 0;
@@ -418,18 +409,15 @@ public final class RpcRequest {
         return this;
       }
 
-      @java.lang.Override
       public com.google.protobuf.Descriptors.Descriptor
           getDescriptorForType() {
         return com.dfire.protocol.RpcRequest.internal_static_Request_descriptor;
       }
 
-      @java.lang.Override
       public com.dfire.protocol.RpcRequest.Request getDefaultInstanceForType() {
         return com.dfire.protocol.RpcRequest.Request.getDefaultInstance();
       }
 
-      @java.lang.Override
       public com.dfire.protocol.RpcRequest.Request build() {
         com.dfire.protocol.RpcRequest.Request result = buildPartial();
         if (!result.isInitialized()) {
@@ -438,7 +426,6 @@ public final class RpcRequest {
         return result;
       }
 
-      @java.lang.Override
       public com.dfire.protocol.RpcRequest.Request buildPartial() {
         com.dfire.protocol.RpcRequest.Request result = new com.dfire.protocol.RpcRequest.Request(this);
         result.rid_ = rid_;
@@ -448,39 +435,32 @@ public final class RpcRequest {
         return result;
       }
 
-      @java.lang.Override
       public Builder clone() {
         return (Builder) super.clone();
       }
-      @java.lang.Override
       public Builder setField(
           com.google.protobuf.Descriptors.FieldDescriptor field,
           java.lang.Object value) {
         return (Builder) super.setField(field, value);
       }
-      @java.lang.Override
       public Builder clearField(
           com.google.protobuf.Descriptors.FieldDescriptor field) {
         return (Builder) super.clearField(field);
       }
-      @java.lang.Override
       public Builder clearOneof(
           com.google.protobuf.Descriptors.OneofDescriptor oneof) {
         return (Builder) super.clearOneof(oneof);
       }
-      @java.lang.Override
       public Builder setRepeatedField(
           com.google.protobuf.Descriptors.FieldDescriptor field,
           int index, java.lang.Object value) {
         return (Builder) super.setRepeatedField(field, index, value);
       }
-      @java.lang.Override
       public Builder addRepeatedField(
           com.google.protobuf.Descriptors.FieldDescriptor field,
           java.lang.Object value) {
         return (Builder) super.addRepeatedField(field, value);
       }
-      @java.lang.Override
       public Builder mergeFrom(com.google.protobuf.Message other) {
         if (other instanceof com.dfire.protocol.RpcRequest.Request) {
           return mergeFrom((com.dfire.protocol.RpcRequest.Request)other);
@@ -506,12 +486,10 @@ public final class RpcRequest {
         return this;
       }
 
-      @java.lang.Override
       public final boolean isInitialized() {
         return true;
       }
 
-      @java.lang.Override
       public Builder mergeFrom(
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -599,7 +577,6 @@ public final class RpcRequest {
        * <code>.Operate operate = 2;</code>
        */
       public com.dfire.protocol.RpcOperate.Operate getOperate() {
-        @SuppressWarnings("deprecation")
         com.dfire.protocol.RpcOperate.Operate result = com.dfire.protocol.RpcOperate.Operate.valueOf(operate_);
         return result == null ? com.dfire.protocol.RpcOperate.Operate.UNRECOGNIZED : result;
       }
@@ -673,13 +650,11 @@ public final class RpcRequest {
         onChanged();
         return this;
       }
-      @java.lang.Override
       public final Builder setUnknownFields(
           final com.google.protobuf.UnknownFieldSet unknownFields) {
         return super.setUnknownFieldsProto3(unknownFields);
       }
 
-      @java.lang.Override
       public final Builder mergeUnknownFields(
           final com.google.protobuf.UnknownFieldSet unknownFields) {
         return super.mergeUnknownFields(unknownFields);
@@ -701,7 +676,6 @@ public final class RpcRequest {
 
     private static final com.google.protobuf.Parser<Request>
         PARSER = new com.google.protobuf.AbstractParser<Request>() {
-      @java.lang.Override
       public Request parsePartialFrom(
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -719,7 +693,6 @@ public final class RpcRequest {
       return PARSER;
     }
 
-    @java.lang.Override
     public com.dfire.protocol.RpcRequest.Request getDefaultInstanceForType() {
       return DEFAULT_INSTANCE;
     }

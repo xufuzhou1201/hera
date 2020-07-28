@@ -128,6 +128,13 @@ public final class RpcResponse {
             case 0:
               done = true;
               break;
+            default: {
+              if (!parseUnknownFieldProto3(
+                  input, unknownFields, extensionRegistry, tag)) {
+                done = true;
+              }
+              break;
+            }
             case 8: {
               int rawValue = input.readEnum();
 
@@ -156,13 +163,6 @@ public final class RpcResponse {
               body_ = input.readBytes();
               break;
             }
-            default: {
-              if (!parseUnknownFieldProto3(
-                  input, unknownFields, extensionRegistry, tag)) {
-                done = true;
-              }
-              break;
-            }
           }
         }
       } catch (com.google.protobuf.InvalidProtocolBufferException e) {
@@ -180,7 +180,6 @@ public final class RpcResponse {
       return com.dfire.protocol.RpcResponse.internal_static_Response_descriptor;
     }
 
-    @java.lang.Override
     protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
         internalGetFieldAccessorTable() {
       return com.dfire.protocol.RpcResponse.internal_static_Response_fieldAccessorTable
@@ -208,7 +207,6 @@ public final class RpcResponse {
      * <code>.Status statusEnum = 1;</code>
      */
     public com.dfire.protocol.ResponseStatus.Status getStatusEnum() {
-      @SuppressWarnings("deprecation")
       com.dfire.protocol.ResponseStatus.Status result = com.dfire.protocol.ResponseStatus.Status.valueOf(statusEnum_);
       return result == null ? com.dfire.protocol.ResponseStatus.Status.UNRECOGNIZED : result;
     }
@@ -238,7 +236,6 @@ public final class RpcResponse {
      * <code>.Operate operate = 3;</code>
      */
     public com.dfire.protocol.RpcOperate.Operate getOperate() {
-      @SuppressWarnings("deprecation")
       com.dfire.protocol.RpcOperate.Operate result = com.dfire.protocol.RpcOperate.Operate.valueOf(operate_);
       return result == null ? com.dfire.protocol.RpcOperate.Operate.UNRECOGNIZED : result;
     }
@@ -299,7 +296,6 @@ public final class RpcResponse {
     }
 
     private byte memoizedIsInitialized = -1;
-    @java.lang.Override
     public final boolean isInitialized() {
       byte isInitialized = memoizedIsInitialized;
       if (isInitialized == 1) return true;
@@ -309,7 +305,6 @@ public final class RpcResponse {
       return true;
     }
 
-    @java.lang.Override
     public void writeTo(com.google.protobuf.CodedOutputStream output)
                         throws java.io.IOException {
       if (statusEnum_ != com.dfire.protocol.ResponseStatus.Status.OK.getNumber()) {
@@ -330,7 +325,6 @@ public final class RpcResponse {
       unknownFields.writeTo(output);
     }
 
-    @java.lang.Override
     public int getSerializedSize() {
       int size = memoizedSize;
       if (size != -1) return size;
@@ -475,7 +469,6 @@ public final class RpcResponse {
           .parseWithIOException(PARSER, input, extensionRegistry);
     }
 
-    @java.lang.Override
     public Builder newBuilderForType() { return newBuilder(); }
     public static Builder newBuilder() {
       return DEFAULT_INSTANCE.toBuilder();
@@ -483,7 +476,6 @@ public final class RpcResponse {
     public static Builder newBuilder(com.dfire.protocol.RpcResponse.Response prototype) {
       return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
     }
-    @java.lang.Override
     public Builder toBuilder() {
       return this == DEFAULT_INSTANCE
           ? new Builder() : new Builder().mergeFrom(this);
@@ -511,7 +503,6 @@ public final class RpcResponse {
         return com.dfire.protocol.RpcResponse.internal_static_Response_descriptor;
       }
 
-      @java.lang.Override
       protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
           internalGetFieldAccessorTable() {
         return com.dfire.protocol.RpcResponse.internal_static_Response_fieldAccessorTable
@@ -534,7 +525,6 @@ public final class RpcResponse {
                 .alwaysUseFieldBuilders) {
         }
       }
-      @java.lang.Override
       public Builder clear() {
         super.clear();
         statusEnum_ = 0;
@@ -550,18 +540,15 @@ public final class RpcResponse {
         return this;
       }
 
-      @java.lang.Override
       public com.google.protobuf.Descriptors.Descriptor
           getDescriptorForType() {
         return com.dfire.protocol.RpcResponse.internal_static_Response_descriptor;
       }
 
-      @java.lang.Override
       public com.dfire.protocol.RpcResponse.Response getDefaultInstanceForType() {
         return com.dfire.protocol.RpcResponse.Response.getDefaultInstance();
       }
 
-      @java.lang.Override
       public com.dfire.protocol.RpcResponse.Response build() {
         com.dfire.protocol.RpcResponse.Response result = buildPartial();
         if (!result.isInitialized()) {
@@ -570,7 +557,6 @@ public final class RpcResponse {
         return result;
       }
 
-      @java.lang.Override
       public com.dfire.protocol.RpcResponse.Response buildPartial() {
         com.dfire.protocol.RpcResponse.Response result = new com.dfire.protocol.RpcResponse.Response(this);
         result.statusEnum_ = statusEnum_;
@@ -582,39 +568,32 @@ public final class RpcResponse {
         return result;
       }
 
-      @java.lang.Override
       public Builder clone() {
         return (Builder) super.clone();
       }
-      @java.lang.Override
       public Builder setField(
           com.google.protobuf.Descriptors.FieldDescriptor field,
           java.lang.Object value) {
         return (Builder) super.setField(field, value);
       }
-      @java.lang.Override
       public Builder clearField(
           com.google.protobuf.Descriptors.FieldDescriptor field) {
         return (Builder) super.clearField(field);
       }
-      @java.lang.Override
       public Builder clearOneof(
           com.google.protobuf.Descriptors.OneofDescriptor oneof) {
         return (Builder) super.clearOneof(oneof);
       }
-      @java.lang.Override
       public Builder setRepeatedField(
           com.google.protobuf.Descriptors.FieldDescriptor field,
           int index, java.lang.Object value) {
         return (Builder) super.setRepeatedField(field, index, value);
       }
-      @java.lang.Override
       public Builder addRepeatedField(
           com.google.protobuf.Descriptors.FieldDescriptor field,
           java.lang.Object value) {
         return (Builder) super.addRepeatedField(field, value);
       }
-      @java.lang.Override
       public Builder mergeFrom(com.google.protobuf.Message other) {
         if (other instanceof com.dfire.protocol.RpcResponse.Response) {
           return mergeFrom((com.dfire.protocol.RpcResponse.Response)other);
@@ -647,12 +626,10 @@ public final class RpcResponse {
         return this;
       }
 
-      @java.lang.Override
       public final boolean isInitialized() {
         return true;
       }
 
-      @java.lang.Override
       public Builder mergeFrom(
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -702,7 +679,6 @@ public final class RpcResponse {
        * <code>.Status statusEnum = 1;</code>
        */
       public com.dfire.protocol.ResponseStatus.Status getStatusEnum() {
-        @SuppressWarnings("deprecation")
         com.dfire.protocol.ResponseStatus.Status result = com.dfire.protocol.ResponseStatus.Status.valueOf(statusEnum_);
         return result == null ? com.dfire.protocol.ResponseStatus.Status.UNRECOGNIZED : result;
       }
@@ -793,7 +769,6 @@ public final class RpcResponse {
        * <code>.Operate operate = 3;</code>
        */
       public com.dfire.protocol.RpcOperate.Operate getOperate() {
-        @SuppressWarnings("deprecation")
         com.dfire.protocol.RpcOperate.Operate result = com.dfire.protocol.RpcOperate.Operate.valueOf(operate_);
         return result == null ? com.dfire.protocol.RpcOperate.Operate.UNRECOGNIZED : result;
       }
@@ -948,13 +923,11 @@ public final class RpcResponse {
         onChanged();
         return this;
       }
-      @java.lang.Override
       public final Builder setUnknownFields(
           final com.google.protobuf.UnknownFieldSet unknownFields) {
         return super.setUnknownFieldsProto3(unknownFields);
       }
 
-      @java.lang.Override
       public final Builder mergeUnknownFields(
           final com.google.protobuf.UnknownFieldSet unknownFields) {
         return super.mergeUnknownFields(unknownFields);
@@ -976,7 +949,6 @@ public final class RpcResponse {
 
     private static final com.google.protobuf.Parser<Response>
         PARSER = new com.google.protobuf.AbstractParser<Response>() {
-      @java.lang.Override
       public Response parsePartialFrom(
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
@@ -994,7 +966,6 @@ public final class RpcResponse {
       return PARSER;
     }
 
-    @java.lang.Override
     public com.dfire.protocol.RpcResponse.Response getDefaultInstanceForType() {
       return DEFAULT_INSTANCE;
     }

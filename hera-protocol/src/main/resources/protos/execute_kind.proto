@@ -10,4 +10,6 @@ enum ExecuteKind {
     ScheduleKind = 0;
     ManualKind = 1;
     DebugKind = 2;
+    AutoRerunKind = 3;
+    SuperRecoveryKind = 4;
 }

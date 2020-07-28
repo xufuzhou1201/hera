@@ -7,6 +7,7 @@ import com.dfire.common.vo.JobElement;
 import com.dfire.config.HeraGlobalEnv;
 import com.dfire.core.event.Dispatcher;
 import com.dfire.core.netty.ChoreService;
+import com.dfire.core.netty.master.comparator.FiFoComp;
 import com.dfire.core.netty.master.schedule.*;
 import com.dfire.core.quartz.QuartzSchedulerService;
 import com.dfire.logs.ErrorLog;
@@ -82,24 +83,11 @@ public class MasterContext {
     private HeraRerunService heraRerunService;
     private Dispatcher dispatcher;
     private Map<Integer, HeraHostGroupVo> hostGroupCache;
-    private BlockingQueue<JobElement> scheduleQueue = new PriorityBlockingQueue<>(10000, (o1, o2) -> {
-        //优先根据任务优先级排列
-        if (o1.getPriorityLevel() > o2.getPriorityLevel()) {
-            return -1;
-        } else if (o1.getPriorityLevel().equals(o2.getPriorityLevel())) {
-            //如果任务优先级相等，根据版本的时间排序，一般来说版本时间越小越优先执行
-            long firstId = o1.getJobId() / 1000000;
-            long secondId = o2.getJobId() / 1000000;
-            if (firstId < secondId) {
-                return -1;
-            } else if (firstId == secondId) {
-                return 0;
-            }
-        }
-        return 1;
-    });
+    private BlockingQueue<JobElement> scheduleQueue = new PriorityBlockingQueue<>(10000, new FiFoComp());
     private BlockingQueue<JobElement> debugQueue = new LinkedBlockingQueue<>(10000);
     private BlockingQueue<JobElement> manualQueue = new LinkedBlockingQueue<>(10000);
+    private BlockingQueue<JobElement> rerunQueue = new LinkedBlockingQueue<>(10000);
+    private BlockingQueue<JobElement> superRecovery = new LinkedBlockingQueue<>(10000);
     private MasterHandler handler;
     private MasterServer masterServer;
     @Getter
@@ -112,6 +100,9 @@ public class MasterContext {
     private JobActionInit actionInit;
     private JobFinishCheck finishCheck;
     private JobQueueScan queueScan;
+    @Getter
+    private boolean isStop;
+
 
 
     public void init() {
@@ -142,7 +133,7 @@ public class MasterContext {
         choreService.scheduledChore(finishCheck);
         queueScan = new JobQueueScan(master);
         choreService.scheduledChoreOnce(queueScan);
-        HeraLog.info("init master content success ");
+        HeraLog.info("end init master content success ");
     }
 
     public void destroy() {

@@ -27,6 +27,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Map;
 import java.util.concurrent.Future;
 
 /**
@@ -38,13 +39,19 @@ public class WorkExecuteJob {
 
     public Future<RpcResponse.Response> execute(WorkContext workContext, RpcRequest.Request request) {
         try {
-            if (request.getOperate() == RpcOperate.Operate.Debug) {
-                return debug(workContext, request);
-            } else if (request.getOperate() == RpcOperate.Operate.Manual) {
-                return manual(workContext, request);
-            } else if (request.getOperate() == RpcOperate.Operate.Schedule) {
-                return schedule(workContext, request);
+            switch (request.getOperate()) {
+                case Debug:
+                    return debug(workContext, request);
+                case Manual:
+                case Rerun:
+                    return manual(workContext, request);
+                case Schedule:
+                case SuperRecovery:
+                    return schedule(workContext, request);
+                default:
+
             }
+
         } catch (HeraException e) {
             ErrorLog.error("执行任务失败", e);
         }
@@ -72,6 +79,14 @@ public class WorkExecuteJob {
         SocketLog.info("worker received master request to run manual job, actionId = {}", actionId);
         HeraAction heraAction = workContext.getHeraJobActionService().findById(actionId);
         HeraJobHistoryVo history = BeanConvertUtils.convert(workContext.getHeraJobHistoryService().findById(heraAction.getHistoryId()));
+
+        Map<HistoryPair, Job> runningMap;
+        if (request.getOperate() == RpcOperate.Operate.Rerun) {
+            runningMap = workContext.getRerunRunning();
+        } else {
+            runningMap = workContext.getManualRunning();
+        }
+
         return workContext.getWorkExecuteThreadPool().submit(() -> {
             history.setExecuteHost(WorkContext.host);
             history.setStartTime(new Date());
@@ -92,7 +107,7 @@ public class WorkExecuteJob {
                 HeraJobBean jobBean = workContext.getHeraGroupService().getUpstreamJobBean(history.getJobId());
                 Job job = JobUtils.createScheduleJob(new JobContext(JobContext.SCHEDULE_RUN),
                         jobBean, history, directory.getAbsolutePath());
-                workContext.getManualRunning().put(historyPair, job);
+                runningMap.put(historyPair, job);
                 exitCode = job.run();
             } catch (Exception e) {
                 exception = e;
@@ -108,7 +123,7 @@ public class WorkExecuteJob {
                                 .illustrate(history.getIllustrate())
                                 .endTime(new Date())
                                 .build());
-                workContext.getManualRunning().remove(historyPair);
+                runningMap.remove(historyPair);
             }
 
             ResponseStatus.Status status = ResponseStatus.Status.OK;
@@ -152,6 +167,12 @@ public class WorkExecuteJob {
         JobStatus jobStatus = workContext.getHeraJobActionService().findJobStatus(jobId);
         HeraJobHistory heraJobHistory = workContext.getHeraJobHistoryService().findById(jobStatus.getHistoryId());
         HeraJobHistoryVo history = BeanConvertUtils.convert(heraJobHistory);
+        Map<HistoryPair, Job> running;
+        if (request.getOperate() == RpcOperate.Operate.SuperRecovery) {
+            running = workContext.getSuperRunning();
+        } else {
+            running = workContext.getRunning();
+        }
         return workContext.getWorkExecuteThreadPool().submit(() -> {
             history.setExecuteHost(WorkContext.host);
             history.setStartTime(new Date());
@@ -171,7 +192,9 @@ public class WorkExecuteJob {
             HistoryPair historyPair = new HistoryPair(jobId, jobStatus.getHistoryId());
             try {
                 Job job = JobUtils.createScheduleJob(new JobContext(JobContext.SCHEDULE_RUN), jobBean, history, directory.getAbsolutePath());
-                workContext.getRunning().put(historyPair, job);
+
+
+                running.put(historyPair, job);
                 exitCode = job.run();
             } catch (Exception e) {
                 exception = e;
@@ -186,7 +209,7 @@ public class WorkExecuteJob {
                                 endTime(new Date())
                                 .illustrate(history.getIllustrate())
                                 .build());
-                workContext.getRunning().remove(historyPair);
+                running.remove(historyPair);
             }
 
             ResponseStatus.Status status = ResponseStatus.Status.OK;

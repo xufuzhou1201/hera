@@ -7,28 +7,40 @@ package com.dfire.common.enums;
  */
 public enum TriggerTypeEnum {
 
+    NONE(0, "无"),
     /**
      * 定时任务
      */
-    SCHEDULE(1),
+    SCHEDULE(1, "自动调度"),
     /**
      * 手动执行任务
      */
-    MANUAL(2),
+    MANUAL(2, "手动触发"),
     /**
-     * 手动回复任务
+     * 手动恢复任务
      */
-    MANUAL_RECOVER(3),
+    MANUAL_RECOVER(3, "手动恢复"),
     /**
      * 开发中心任务
      */
-    DEBUG(4),
+    DEBUG(4, "开发执行"),
+    /**
+     * 自动重跑
+     */
 
-    AUTO_RERUN(5);
+    AUTO_RERUN(5, "自动重跑"),
+    /**
+     * 超级恢复
+     */
+    SUPER_RECOVER(6, "超级恢复");
+
     private Integer id;
 
-    TriggerTypeEnum(Integer id) {
+    private String name;
+
+    TriggerTypeEnum(Integer id, String name) {
         this.id = id;
+        this.name = name;
     }
 
     public static TriggerTypeEnum parser(Integer v) {
@@ -37,7 +49,7 @@ public enum TriggerTypeEnum {
                 return type;
             }
         }
-        return null;
+        return NONE;
     }
 
     @Override
@@ -46,18 +58,7 @@ public enum TriggerTypeEnum {
     }
 
     public String toName() {
-        if (id == 1) {
-            return "自动调度";
-        } else if (id == 2) {
-            return "手动触发";
-        } else if (id == 3) {
-            return "手动恢复";
-        } else if (id == 4) {
-            return "debug执行";
-        } else if (id == 5) {
-            return "自动重跑";
-        }
-        return "未知";
+        return name;
     }
 
     public Integer getId() {

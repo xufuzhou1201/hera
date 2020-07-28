@@ -30,9 +30,9 @@ public class MasterHandleRequest {
             heartBeatInfo.setMemRate(heartBeatMessage.getMemRate());
             heartBeatInfo.setMemTotal(heartBeatMessage.getMemTotal());
             heartBeatInfo.setCpuLoadPerCore(heartBeatMessage.getCpuLoadPerCore());
-            heartBeatInfo.setRunning(heartBeatMessage.getRunningsList());
-            heartBeatInfo.setDebugRunning(heartBeatMessage.getDebugRunningsList());
-            heartBeatInfo.setManualRunning(heartBeatMessage.getManualRunningsList());
+            heartBeatInfo.setRunning(heartBeatMessage.getRunningList());
+            heartBeatInfo.setDebugRunning(heartBeatMessage.getDebugRunningList());
+            heartBeatInfo.setManualRunning(heartBeatMessage.getManualRunningList());
             heartBeatInfo.setTimestamp(heartBeatMessage.getTimestamp());
             heartBeatInfo.setCores(heartBeatMessage.getCores());
             workHolder.setHeartBeatInfo(heartBeatInfo);

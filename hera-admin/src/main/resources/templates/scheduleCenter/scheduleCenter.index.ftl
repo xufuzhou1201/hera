@@ -26,12 +26,16 @@
     <link href="${request.contextPath}/static/plugins/codemirror/theme/mbo.css" rel="stylesheet">
     <link href="${request.contextPath}/static/plugins/codemirror/theme/material.css" rel="stylesheet">
     <link href="${request.contextPath}/static/plugins/codemirror/theme/solarized.css" rel="stylesheet">
+    <link href="${request.contextPath}/static/adminlte/bootstrap/css/bootstrap-datetimepicker.min.css"
+          rel="stylesheet"/>
     <link href="${request.contextPath}/static/plugins/codemirror/theme/base16-light.css" rel="stylesheet">
     <link href="${request.contextPath}/static/adminlte/plugins/bootstrap-fileinput/fileinput.min.css" rel="stylesheet">
-    <link href="${request.contextPath}/static/adminlte/plugins/bootstrap-table/bootstrap-table.min.css" rel="stylesheet">
+    <link href="${request.contextPath}/static/adminlte/plugins/bootstrap-table/bootstrap-table.min.css"
+          rel="stylesheet">
     <link rel="stylesheet" href="${request.contextPath}/static/plugins/bootstrap-select/bootstrap-select.min.css">
     <link rel="stylesheet" href="${request.contextPath}/static/css/scheduleCenter.css">
-    <link href="${request.contextPath}/static/adminlte/bootstrap/css/bootstrap-datetimepicker.min.css" rel="stylesheet" />
+    <link href="${request.contextPath}/static/adminlte/bootstrap/css/bootstrap-datetimepicker.min.css"
+          rel="stylesheet"/>
 
 </head>
 
@@ -729,15 +733,10 @@
                                 <li>
                                     <button id="manual" class="btn  btn-xs btn-primary btn-block" type="button"
                                             data-toggle="modal">
-                                        手动执行
+                                        执行任务
                                     </button>
                                 </li>
-                                <br>
-                                <li>
-                                    <button id="manualRecovery" class="btn  btn-xs btn-primary btn-block" type="button">
-                                        手动恢复
-                                    </button>
-                                </li>
+
                                 <br>
                                 <li>
                                     <button class="btn  btn-xs btn-primary btn-block" type="button" name="switch">
@@ -842,12 +841,37 @@
                 <h4 class="modal-title" id="title">选择Job版本</h4>
             </div>
             <div class="modal-body">
-                <div class="input-group form-inline">
-                    <label class="input-group-addon control-label form-inline" for="jobVersion">选择Job版本</label>
-                    <select id="selectJobVersion" class="form-control">
-                    </select>
+                <div class="form-horizontal" role="form">
+
+                    <div class="form-group">
+                        <label class="col-sm-2 control-label">选择版本</label>
+                        <div class="col-sm-10">
+                            <select id="selectJobVersion" class="form-control ">
+                            </select>
+                        </div>
+
+                    </div>
+                    <div class="form-group">
+                        <label class="col-sm-2 control-label">触发类型</label>
+                        <div class="col-sm-10">
+                            <div class="radio">
+                                <label>
+                                    <input type="radio" name="triggerType" value="2" checked>
+                                    手动执行
+                                </label>
+                                <label>
+                                    <input type="radio" name="triggerType" value="3">手动恢复
+                                </label>
+                                <label>
+                                    <input type="radio" name="triggerType" value="6">超级恢复
+                                </label>
+                            </div>
+
+                        </div>
+
+                    </div>
                 </div>
-                <br>
+
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
@@ -856,6 +880,7 @@
         </div>
     </div>
 </div>
+
 
 <div class="modal fade" id="addJobModal" tabindex="-1" role="dialog" aria-labelledby="addJob"
      aria-hidden="true">

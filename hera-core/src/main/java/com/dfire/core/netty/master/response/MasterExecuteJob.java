@@ -27,14 +27,19 @@ import java.util.concurrent.TimeUnit;
  */
 public class MasterExecuteJob {
 
-    public Future<Response> executeJob(final MasterContext context, final MasterWorkHolder holder, ExecuteKind kind, final Long id) {
-        switch (kind) {
-            case ScheduleKind:
-                return executeScheduleJob(context, holder, id);
-            case ManualKind:
-                return executeManualJob(context, holder, id);
-            case DebugKind:
-                return executeDebugJob(context, holder, id);
+    public Future<Response> executeJob(final MasterContext context, final MasterWorkHolder holder, TriggerTypeEnum triggerTypeEnum, final Long id) {
+        switch (triggerTypeEnum) {
+            case MANUAL_RECOVER:
+            case SCHEDULE:
+                return executeScheduleJob(context, holder, id, triggerTypeEnum);
+            case SUPER_RECOVER:
+                return executeSuperRecoveryJob(context, holder, id, triggerTypeEnum);
+            case MANUAL:
+                return executeManualJob(context, holder, id, triggerTypeEnum);
+            case DEBUG:
+                return executeDebugJob(context, holder, id, triggerTypeEnum);
+            case AUTO_RERUN:
+                return executeRerunJob(context, holder, id, triggerTypeEnum);
             default:
                 return null;
         }
@@ -44,11 +49,12 @@ public class MasterExecuteJob {
     /**
      * 请求work 执行手动任务
      *
-     * @param context    MasterContext
-     * @param workHolder MasterWorkHolder
+     * @param context         MasterContext
+     * @param workHolder      MasterWorkHolder
+     * @param triggerTypeEnum
      * @return Future
      */
-    private Future<Response> executeManualJob(MasterContext context, MasterWorkHolder workHolder, Long actionId) {
+    private Future<Response> executeManualJob(MasterContext context, MasterWorkHolder workHolder, Long actionId, TriggerTypeEnum triggerTypeEnum) {
         workHolder.getManningRunning().add(actionId);
         return buildFuture(context, Request.newBuilder()
                 .setRid(AtomicIncrease.getAndIncrement())
@@ -57,19 +63,59 @@ public class MasterExecuteJob {
                         .newBuilder()
                         .setActionId(String.valueOf(actionId))
                         .build().toByteString())
-                .build(), workHolder, actionId, TriggerTypeEnum.MANUAL);
+                .build(), workHolder, actionId, triggerTypeEnum);
+    }
+
+    /**
+     * 请求work 执行自动重跑任务
+     *
+     * @param context    MasterContext
+     * @param workHolder MasterWorkHolder
+     * @return Future
+     */
+    private Future<Response> executeSuperRecoveryJob(MasterContext context, MasterWorkHolder workHolder, Long actionId, TriggerTypeEnum triggerTypeEnum) {
+        workHolder.getSuperRunning().add(actionId);
+        return buildFuture(context, Request.newBuilder()
+                .setRid(AtomicIncrease.getAndIncrement())
+                .setOperate(Operate.SuperRecovery)
+                .setBody(ExecuteMessage
+                        .newBuilder()
+                        .setActionId(String.valueOf(actionId))
+                        .build().toByteString())
+                .build(), workHolder, actionId, triggerTypeEnum);
     }
 
 
     /**
-     * 请求work 执行调度任务/恢复任务
+     * 请求work 执行自动重跑任务
      *
-     * @param context    MasterContext
-     * @param workHolder MasterWorkHolder
-     * @param actionId   String
+     * @param context         MasterContext
+     * @param workHolder      MasterWorkHolder
+     * @param triggerTypeEnum
      * @return Future
      */
-    private Future<Response> executeScheduleJob(MasterContext context, MasterWorkHolder workHolder, Long actionId) {
+    private Future<Response> executeRerunJob(MasterContext context, MasterWorkHolder workHolder, Long actionId, TriggerTypeEnum triggerTypeEnum) {
+        workHolder.getRerunRunning().add(actionId);
+        return buildFuture(context, Request.newBuilder()
+                .setRid(AtomicIncrease.getAndIncrement())
+                .setOperate(Operate.Rerun)
+                .setBody(ExecuteMessage
+                        .newBuilder()
+                        .setActionId(String.valueOf(actionId))
+                        .build().toByteString())
+                .build(), workHolder, actionId, triggerTypeEnum);
+    }
+
+    /**
+     * 请求work 执行调度任务/恢复任务
+     *
+     * @param context         MasterContext
+     * @param workHolder      MasterWorkHolder
+     * @param actionId        String
+     * @param triggerTypeEnum
+     * @return Future
+     */
+    private Future<Response> executeScheduleJob(MasterContext context, MasterWorkHolder workHolder, Long actionId, TriggerTypeEnum triggerTypeEnum) {
         workHolder.getRunning().add(actionId);
         return buildFuture(context, Request.newBuilder()
                 .setRid(AtomicIncrease.getAndIncrement())
@@ -78,7 +124,7 @@ public class MasterExecuteJob {
                         .newBuilder()
                         .setActionId(String.valueOf(actionId))
                         .build().toByteString())
-                .build(), workHolder, actionId, TriggerTypeEnum.SCHEDULE);
+                .build(), workHolder, actionId, triggerTypeEnum);
 
     }
 
@@ -86,12 +132,13 @@ public class MasterExecuteJob {
     /**
      * 请求work 执行开发中心任务
      *
-     * @param context    MasterContext
-     * @param workHolder MasterWorkHolder
-     * @param id         String
+     * @param context         MasterContext
+     * @param workHolder      MasterWorkHolder
+     * @param id              String
+     * @param triggerTypeEnum
      * @return Future
      */
-    private Future<Response> executeDebugJob(MasterContext context, MasterWorkHolder workHolder, Long id) {
+    private Future<Response> executeDebugJob(MasterContext context, MasterWorkHolder workHolder, Long id, TriggerTypeEnum triggerTypeEnum) {
         workHolder.getDebugRunning().add(id);
         return buildFuture(context, Request.newBuilder()
                 .setRid(AtomicIncrease.getAndIncrement())
@@ -100,7 +147,7 @@ public class MasterExecuteJob {
                         .newBuilder()
                         .setDebugId(String.valueOf(id))
                         .build().toByteString())
-                .build(), workHolder, id, TriggerTypeEnum.DEBUG);
+                .build(), workHolder, id, triggerTypeEnum);
 
     }
 
@@ -132,13 +179,17 @@ public class MasterExecuteJob {
                         holder.getManningRunning().remove(actionId);
                         break;
                     case SCHEDULE:
-                        holder.getRunning().remove(actionId);
-                        break;
                     case MANUAL_RECOVER:
                         holder.getRunning().remove(actionId);
                         break;
                     case DEBUG:
                         holder.getDebugRunning().remove(actionId);
+                        break;
+                    case AUTO_RERUN:
+                        holder.getRerunRunning().remove(actionId);
+                        break;
+                    case SUPER_RECOVER:
+                        holder.getSuperRunning().remove(actionId);
                         break;
                     default:
                         ErrorLog.warn("未识别的任务执行类型{}", typeEnum);

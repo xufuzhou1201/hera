@@ -93,6 +93,8 @@ public class WorkHandler extends SimpleChannelInboundHandler<SocketMessage> {
                     case Schedule:
                     case Manual:
                     case Debug:
+                    case Rerun:
+                    case SuperRecovery:
                         completionService.submit(() ->
                                 new ChannelResponse(getChannel(channel), new WorkExecuteJob().execute(workContext, request).get()));
                         break;

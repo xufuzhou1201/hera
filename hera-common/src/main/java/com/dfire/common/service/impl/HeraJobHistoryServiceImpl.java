@@ -1,15 +1,21 @@
 package com.dfire.common.service.impl;
 
+import com.alibaba.fastjson.JSONObject;
+import com.dfire.common.entity.HeraJob;
 import com.dfire.common.entity.HeraJobHistory;
-import com.dfire.common.entity.vo.HeraJobHistoryVo;
+import com.dfire.common.entity.model.TablePageForm;
 import com.dfire.common.entity.vo.JobLogHistoryVo;
-import com.dfire.common.entity.vo.PageHelper;
 import com.dfire.common.entity.vo.PageHelperTimeRange;
+import com.dfire.common.enums.StatusEnum;
+import com.dfire.common.enums.TriggerTypeEnum;
 import com.dfire.common.mapper.HeraJobHistoryMapper;
 import com.dfire.common.service.HeraJobHistoryService;
+import com.dfire.common.service.HeraJobService;
 import com.dfire.common.util.ActionUtil;
-import org.springframework.beans.BeanUtils;
+import com.dfire.common.util.Pair;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -23,6 +29,10 @@ import java.util.*;
 public class HeraJobHistoryServiceImpl implements HeraJobHistoryService {
     @Autowired
     HeraJobHistoryMapper heraJobHistoryMapper;
+
+    @Autowired
+    @Qualifier("heraJobMemoryService")
+    private HeraJobService heraJobService;
 
 
     @Override
@@ -48,6 +58,11 @@ public class HeraJobHistoryServiceImpl implements HeraJobHistoryService {
     @Override
     public int update(HeraJobHistory heraJobHistory) {
         return heraJobHistoryMapper.update(heraJobHistory);
+    }
+
+    @Override
+    public int updateProperties(HeraJobHistory heraJobHistory) {
+        return heraJobHistoryMapper.updateHeraJobHistoryProperties(heraJobHistory);
     }
 
     @Override
@@ -88,26 +103,17 @@ public class HeraJobHistoryServiceImpl implements HeraJobHistoryService {
     @Override
     public Map<String, Object> findLogByPage(PageHelperTimeRange pageHelperTimeRange) {
         Map<String, Object> res = new HashMap<>(2);
-        Integer size = null;
-        List<JobLogHistoryVo> histories = null ;
+        Integer size;
+        List<JobLogHistoryVo> histories;
 
-        if(pageHelperTimeRange.getJobType().equals("job")){
-        	size = heraJobHistoryMapper.selectCountByPageJob(pageHelperTimeRange);
-        	histories=heraJobHistoryMapper.selectByPageJob(  pageHelperTimeRange);
-        }else{
-        	size = heraJobHistoryMapper.selectCountByPageGroup(pageHelperTimeRange);
-        	histories=heraJobHistoryMapper.selectByPageGroup( pageHelperTimeRange);
+        if (pageHelperTimeRange.getJobType().equals("job")) {
+            size = heraJobHistoryMapper.selectCountByPageJob(pageHelperTimeRange);
+            histories = heraJobHistoryMapper.selectByPageJob(pageHelperTimeRange);
+        } else {
+            size = heraJobHistoryMapper.selectCountByPageGroup(pageHelperTimeRange);
+            histories = heraJobHistoryMapper.selectByPageGroup(pageHelperTimeRange);
         }
-
-//        List<JobLogHistory> jobLogHistories = new ArrayList<>();
-//        for (HeraJobHistoryVo history : histories) {
-//            JobLogHistory logHistory = new JobLogHistory();
-//            BeanUtils.copyProperties(history, logHistory);
-//            logHistory.setStartTime(ActionUtil.getDefaultFormatterDate(history.getStartTime()));
-//            logHistory.setEndTime(ActionUtil.getDefaultFormatterDate(history.getEndTime()));
-//            jobLogHistories.add(logHistory);
-//        }
-//        res.put("rows", jobLogHistories);
+        histories.stream().filter(his -> StringUtils.isNotBlank(his.getTriggerType())).forEach(his -> his.setTriggerType(TriggerTypeEnum.parser(Integer.parseInt(his.getTriggerType())).toName()));
         res.put("rows", histories);
         res.put("total", size);
         return res;
@@ -124,13 +130,42 @@ public class HeraJobHistoryServiceImpl implements HeraJobHistoryService {
     }
 
     @Override
-    public HeraJobHistory findNewest(Long jobId) {
+    public HeraJobHistory findNewest(Integer jobId) {
         return heraJobHistoryMapper.findNewest(jobId);
     }
+
 
     @Override
     public HeraJobHistory findPropertiesById(Long id) {
         return heraJobHistoryMapper.findPropertiesBy(id);
+    }
+
+
+    @Override
+    public Pair<Integer, List<JSONObject>> findRerunFailed(Integer jobId, String rerunId, long actionId, TablePageForm pageForm) {
+        List<HeraJobHistory> rerunFailedIds = heraJobHistoryMapper.findRerunFailed(jobId, rerunId, actionId, pageForm.getStartPos(), pageForm.getLimit());
+        HeraJob memById = heraJobService.findMemById(jobId);
+        List<JSONObject> res = new ArrayList<>();
+        for (HeraJobHistory rerunFailedId : rerunFailedIds) {
+            JSONObject object = new JSONObject();
+            object.put("actionId", String.valueOf(rerunFailedId.getActionId()));
+            object.put("name", memById.getName());
+            object.put("startTime", ActionUtil.getDefaultFormatterDate(rerunFailedId.getStartTime()));
+            object.put("endTime", ActionUtil.getDefaultFormatterDate(rerunFailedId.getEndTime()));
+            object.put("status", StatusEnum.FAILED.toString());
+            res.add(object);
+        }
+        return Pair.of(heraJobHistoryMapper.findRerunFailedCount(jobId, rerunId, actionId), res);
+    }
+
+    @Override
+    public List<HeraJobHistory> findRerunFailedIdsByLimit(Long lastId, Integer jobId, String rerunId, Integer limit) {
+        return heraJobHistoryMapper.findRerunFailedIdsByLimit(lastId, jobId, rerunId, limit);
+    }
+
+    @Override
+    public Integer findRerunFailedCount(Integer jobId, String rerunId, long actionId) {
+        return heraJobHistoryMapper.findRerunFailedCount(jobId, rerunId, actionId);
     }
 
 

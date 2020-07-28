@@ -63,6 +63,12 @@ public class HeraGlobalEnv {
     @Getter
     private static Integer maxParallelNum;
     @Getter
+    private static Integer maxRerunParallelNum;
+    @Getter
+    private static Integer rerunStartTime;
+    @Getter
+    private static Integer rerunEndTime;
+    @Getter
     private static Integer heartBeat;
     @Getter
     private static String admin;
@@ -282,6 +288,20 @@ public class HeraGlobalEnv {
     @Value("${hera.maxParallelNum}")
     public void setMaxParallelNum(Integer maxParallelNum) {
         HeraGlobalEnv.maxParallelNum = maxParallelNum;
+    }
+
+    @Value("${hera.rerun.maxParallelNum}")
+    public void setMaxRerunParallelNum(Integer maxRerunParallelNum) {
+        HeraGlobalEnv.maxRerunParallelNum = maxRerunParallelNum;
+    }
+
+    @Value("${hera.rerun.timeRange}")
+    public void setRerunTimeRange(String rerunTimeRange) {
+        int splitIndex;
+        if (rerunTimeRange != null && (splitIndex = rerunTimeRange.indexOf("-")) != -1) {
+            HeraGlobalEnv.rerunStartTime = Integer.parseInt(rerunTimeRange.substring(0, splitIndex));
+            HeraGlobalEnv.rerunEndTime = Integer.parseInt(rerunTimeRange.substring(splitIndex + 1));
+        }
     }
 
     @Value("${hera.jobCacheDay}")

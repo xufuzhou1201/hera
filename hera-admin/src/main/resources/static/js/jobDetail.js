@@ -6,13 +6,18 @@ layui.use(['table'], function () {
     $('#jobDetailMenu').parent().parent().addClass('menu-open');
     $('#jobManage').addClass('active');
 
-
+    function cancelJob(historyId, jobId) {
+        var url = base_url + "/scheduleCenter/cancelJob.do";
+        var parameter = {historyId: historyId, jobId: jobId};
+        $.get(url, parameter, function (data) {
+            layer.msg(data);
+            $('#jobLog [name="refreshLog"]').trigger('click');
+        });
+    }
 
     var TableInit = function () {
         var oTableInit = new Object();
         oTableInit.init = function () {
-        	
-        	
             var table = $('#historyJobTable');
             table.bootstrapTable({
                 url: base_url + '/job/history',
@@ -26,14 +31,14 @@ layui.use(['table'], function () {
                 showPaginationSwitch: false,  //是否显示选择分页数按钮
                 pageNumber: 1,              //初始化加载第一页，默认第一页
                 pageSize: 20,                //每页的记录行数（*）
-                pageList: [10, 25, 50, 100],
+                pageList: [40, 60, 80],
                 queryParams: params,
                 search: true,
                 uniqueId: 'id',
                 sidePagination: "client",
                 searchAlign: 'left',
                 buttonsAlign: 'left',
-                
+
                 onClickCell:function(field, value, row, $element){//点击单元格事件
                 	if(field === 'groupName'){//点击作业组
                         $('#runningLogDetailTable').bootstrapTable("destroy");
@@ -51,7 +56,7 @@ layui.use(['table'], function () {
                 		//do nothing
                 	}
                 },
-                
+
 //                onClickRow: function (row) {
 //                    // console.log(row)
 //                    $('#runningLogDetailTable').bootstrapTable("destroy");
@@ -167,7 +172,7 @@ layui.use(['table'], function () {
         var actionRow;
         var oTableInit = new Object();
         var table = $('#runningLogDetailTable');
-        
+
         function scheduleLog() {
 
             $.ajax({
@@ -254,7 +259,7 @@ layui.use(['table'], function () {
                         align: 'center',
                         halign: 'center'
                     }
-                    
+
                     , {
                         field: "jobName",
                         title: "任务名称",
@@ -319,23 +324,23 @@ layui.use(['table'], function () {
                     		  x2_len = 1;
                     	  }
                     	  let x3_len=240-x1_len-x2_len;
-                    	  
+
                     	  let vv='#F0F0F0';
                     	  let xx=x1_len;
                     	  let x1='<td style="width: '+xx+'px;background-color:'+ vv +'">&nbsp</td>';
-                    	  
+
                     	  //let x1='<td class="layui-bg-gray" style="width: '+x1_len+'px;">&nbsp</td>';
                     	  if (x1_len <= 0){
                     		  x1='';
                     	  }
-                    	  
+
                     	  vv=v_status;
                     	  xx=x2_len;
                     	  let x2='<td style="width: '+xx+'px;background-color:'+ vv +'">&nbsp</td>';
-                    	  
+
                     	  //let x2='<td class="layui-bg-'+ v_status  +'" style="width: '+x2_len+'px;">&nbsp</td>';
                     	  //let x3='<td class="layui-bg-gray" style="width: '+x3_len+'px;">&nbsp</td>';
-                    	  
+
                     	  vv='#F0F0F0';
                     	  xx=x3_len;
                     	  let x3='<td style="width: '+xx+'px;background-color:'+ vv +'">&nbsp</td>';
@@ -388,7 +393,7 @@ layui.use(['table'], function () {
                             		}
                             	else {
                                     let ed = new Date(row['endTime']);
-                                    return (parseInt(ed - st) / 1000.0 / 60.0).toFixed(1);	
+                                    return (parseInt(ed - st) / 1000.0 / 60.0).toFixed(1);
                             	}
                             }
                         }
@@ -404,28 +409,28 @@ layui.use(['table'], function () {
                         halign: 'center',
                         align: 'center',
                         formatter: function (index, row) {
-                        	
+
                             let html_cancelJob_click = '<a href="javascript:cancelJob(\'' + row['id'] + '\',\'' + row['jobId'] + '\')">取消</a>';
                             let html_cancelJob_nonclick = '<a href ="javascript:return false;" style="opacity: 0.2" >取消</a>';
-                            
+
                             let html_manualCurr_click = '<a href ="javascript:manualRecoveryJob(\'' + row['actionId'] + '\',\'' + 2 + '\')" >重做当前</a>';
                             let html_manualCurr_nonclick = '<a href ="javascript:return false;" style="opacity: 0.2" >重做当前</a>';
-                            
+
                             let html_manualNexts_click = '<a href ="javascript:manualRecoveryJob(\'' + row['actionId'] + '\',\'' + 3 + '\')" >重做后续</a>';
                             let html_manualNexts_nonclick = '<a href ="javascript:return false;" style="opacity: 0.2" >重做后续</a>';
-                            
+
                             let html_forceOk_click = '<a href ="javascript:manualRecoveryJob(\'' + row['actionId'] + '\',\'' + 2 + '\')  "" >强制成功</a>';
                             let html_forceOk_nonclick = '<a href ="javascript:return false;" style="opacity: 0.2" >强制成功</a>';
-                            
+
                             let js_cancelJob_click = '<a href ="javascript:cancelJobFun(\'' + row['id'] + '\',\'' + row['jobId'] + '\')">取消</a>';
                             let js_cancelJob_nonclick = '<a href ="javascript:return false;" style="opacity: 0.2" >取消</a>';
-                            
+
                             let js_manualJob_click = '<a href ="javascript:manualJobFun(\'' + row['actionId'] + '\')" >重做</a>';
                             let js_manualJob_nonclick = '<a href ="javascript:return false;" style="opacity: 0.2" >重做</a>';
-                            
+
                             let js_manualForce_click = '<a href ="javascript:manualForceFun(\'' + row['id'] + '\')" >强制</a>';
                             let js_manualForce_nonclick = '<a href ="javascript:return false;" style="opacity: 0.2" >强制</a>';
-                            
+
                             if (row['status'] === 'running') {
                             	re =  js_manualJob_nonclick +"|"+js_cancelJob_click +"|"+js_manualForce_nonclick ;
                             }else if (row['status'] === 'success'){
@@ -437,9 +442,9 @@ layui.use(['table'], function () {
                             }else {
                             	re =  js_manualJob_nonclick +"|"+js_cancelJob_nonclick +"|"+js_manualForce_nonclick ;
                             }
-                            
+
                             logdetail='<a target="_blank" href="jobInstLog?id=' + row['id'] + '&jobId=' + row['jobId']  +'"> 日志</a>'
-                            
+
                             return re + "|" + logdetail;
                         }
                     }, {
@@ -533,7 +538,7 @@ function updateTable() {
 
 
 //重做作业
-function manualJobFun(actionId) {  
+function manualJobFun(actionId) {
 	manualJobFunActionId=actionId
 	$('#myManualJob').modal('show');
 }
@@ -566,7 +571,7 @@ $("#myManualJob .add-btn").click(function () {
 
 
 //强制作业
-function manualForceFun(jobHisId) {  
+function manualForceFun(jobHisId) {
 	manualJobHisId=jobHisId
 	$('#myManualForce').modal('show');
 }
@@ -598,7 +603,7 @@ $("#myManualForce .add-btn").click(function () {
 
 
 //取消任务
-function cancelJobFun(historyId, jobId) {  
+function cancelJobFun(historyId, jobId) {
 	cancelJobFunhistoryId=historyId
 	cancelJobFunjobId=jobId
 	$('#mycancelJobFun').modal('show');

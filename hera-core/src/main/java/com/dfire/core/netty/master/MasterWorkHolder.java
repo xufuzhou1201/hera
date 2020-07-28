@@ -27,6 +27,15 @@ public class MasterWorkHolder {
      * 存放的actionId
      */
     private Set<Long> manningRunning = new HashSet<>();
+
+    /**
+     * 存放的actionId
+     */
+    private Set<Long> rerunRunning = new HashSet<>();
+    /**
+     * 存放的actionId
+     */
+    private Set<Long> superRunning = new HashSet<>();
     /**
      * 存放的debugId
      */

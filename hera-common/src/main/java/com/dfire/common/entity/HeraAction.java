@@ -84,13 +84,8 @@ public class HeraAction {
 
     private int hostGroupId;
 
-    //private String cronPeriod;
-
-    //private int cronInterval;
-
     private String batchId;
-    
-    //private String bizLabel;
+
 
 
 }

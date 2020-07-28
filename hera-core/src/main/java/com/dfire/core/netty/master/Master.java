@@ -39,9 +39,9 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import javax.mail.MessagingException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -104,6 +104,10 @@ public class Master {
         return masterRunJob.isTaskLimit();
     }
 
+    public Integer getRunningTaskNum() {
+        return masterRunJob.getRunningTaskNum();
+    }
+
     private long getBeforeDayAction() {
         Calendar calendar = Calendar.getInstance();
         calendar.add(Calendar.DAY_OF_YEAR, -HeraGlobalEnv.getJobCacheDay());
@@ -135,8 +139,6 @@ public class Master {
                 .map(areaMap::get)
                 .collect(Collectors.toSet());
     }
-
-
 
 
     public boolean generateSingleAction(Integer jobId) {
@@ -496,66 +498,26 @@ public class Master {
     }
 
 
-    /**
-     * 扫描任务等待队列，取出任务去执行
-     */
-    public boolean scan() throws InterruptedException {
-        boolean hasTask = false;
-        if (!masterContext.getScheduleQueue().isEmpty()) {
-            JobElement jobElement = masterContext.getScheduleQueue().take();
+
+    public boolean scanQueue(BlockingQueue<JobElement> queue) throws InterruptedException {
+        if (!queue.isEmpty()) {
+            JobElement jobElement = queue.take();
             MasterWorkHolder selectWork;
             try {
                 selectWork = getRunnableWork(jobElement);
                 if (selectWork == null) {
-                    masterContext.getScheduleQueue().put(jobElement);
-                    ScheduleLog.warn("can not get work to execute Schedule job in master,job is:{}", jobElement.toString());
+                    queue.put(jobElement);
+                    ScheduleLog.warn("can not get work to execute job in master,job is:{}", jobElement.toString());
                 } else {
                     masterRunJob.run(selectWork, jobElement);
-                    hasTask = true;
+                    return true;
                 }
             } catch (HostGroupNotExistsException e) {
-                updateStatus(e.getMessage(), jobElement.getJobId(), TriggerTypeEnum.SCHEDULE);
-                ErrorLog.error("can not get work to execute Schedule job in master", e);
+                updateStatus(e.getMessage(), jobElement.getJobId(), jobElement.getTriggerType());
+                ErrorLog.error("can not get work to execute job in master", e);
             }
         }
-
-        if (!masterContext.getManualQueue().isEmpty()) {
-            JobElement jobElement = masterContext.getManualQueue().take();
-            MasterWorkHolder selectWork;
-            try {
-                selectWork = getRunnableWork(jobElement);
-                if (selectWork == null) {
-                    masterContext.getManualQueue().put(jobElement);
-                    ScheduleLog.warn("can not get work to execute ManualQueue job in master,job is:{}", jobElement.toString());
-                } else {
-                    masterRunJob.run(selectWork, jobElement);
-                    hasTask = true;
-                }
-            } catch (HostGroupNotExistsException e) {
-                updateStatus(e.getMessage(), jobElement.getJobId(), TriggerTypeEnum.MANUAL);
-                ErrorLog.error("can not get work to ManualQueue job in master", e);
-            }
-        }
-
-        if (!masterContext.getDebugQueue().isEmpty()) {
-            JobElement jobElement = masterContext.getDebugQueue().take();
-            MasterWorkHolder selectWork;
-            try {
-                selectWork = getRunnableWork(jobElement);
-                if (selectWork == null) {
-                    masterContext.getDebugQueue().put(jobElement);
-                    ScheduleLog.warn("can not get work to execute DebugQueue job in master,job is:{}", jobElement.toString());
-                } else {
-                    masterRunJob.run(selectWork, jobElement);
-                    hasTask = true;
-                }
-            } catch (HostGroupNotExistsException e) {
-                updateStatus(e.getMessage(), jobElement.getJobId(), TriggerTypeEnum.DEBUG);
-                ErrorLog.error("can not get work to DebugQueue job in master", e);
-            }
-        }
-        return hasTask;
-
+        return false;
     }
 
     private void updateStatus(String msg, Long id, TriggerTypeEnum typeEnum) {
@@ -728,20 +690,27 @@ public class Master {
                 .costMinute(endMinute)
                 .build();
         try {
+            element.setTriggerType(heraJobHistory.getTriggerType());
+            HeraAction cacheAction = heraActionMap.get(element.getJobId());
+            if (cacheAction != null) {
+                cacheAction.setStatus(StatusEnum.RUNNING.toString());
+            }
             switch (heraJobHistory.getTriggerType()) {
                 case MANUAL:
-                case AUTO_RERUN:
-                    element.setTriggerType(TriggerTypeEnum.MANUAL);
                     masterContext.getManualQueue().put(element);
+                    break;
+                case AUTO_RERUN:
+                    masterContext.getRerunQueue().put(element);
                     break;
                 case MANUAL_RECOVER:
                 case SCHEDULE:
-                    //TODO 可以考虑如果是手动恢复、或者调度任务数据部门的任务优先级最高，优先执行:element.setPriorityLevel(Integer.MAX_VALUE);
-                    element.setTriggerType(TriggerTypeEnum.SCHEDULE);
                     masterContext.getScheduleQueue().put(element);
                     break;
+                case SUPER_RECOVER:
+                    masterContext.getSuperRecovery().put(element);
+                    break;
                 default:
-                    ErrorLog.error("不支持的调度类型:{},id:", heraJobHistory.getTriggerType().toName(), heraJobHistory.getActionId());
+                    ErrorLog.error("不支持的调度类型:{},id:{}", heraJobHistory.getTriggerType().toName(), heraJobHistory.getActionId());
                     break;
             }
         } catch (InterruptedException e) {
@@ -771,6 +740,27 @@ public class Master {
             for (MasterWorkHolder workHolder : masterContext.getWorkMap().values()) {
                 if (!exists) {
                     for (Long aLong : workHolder.getRunning()) {
+                        if (Objects.equals(ActionUtil.getJobId(aLong.toString()), jobId)) {
+                            exists = true;
+                            TaskLog.warn("该任务正在执行，添加失败 {}", actionId);
+                            break;
+                        }
+                    }
+                }
+
+            }
+        } else if (heraJobHistory.getTriggerType() == TriggerTypeEnum.SUPER_RECOVER) {
+            // check调度器等待队列是否有此任务在排队
+            for (JobElement jobElement : masterContext.getSuperRecovery()) {
+                if (ActionUtil.jobEquals(jobElement.getJobId(), actionId)) {
+                    exists = true;
+                    TaskLog.warn("调度队列已存在该任务，添加失败 {}", actionId);
+                }
+            }
+            // check所有的worker中是否有此任务的id在执行，如果有，不进入队列等待
+            for (MasterWorkHolder workHolder : masterContext.getWorkMap().values()) {
+                if (!exists) {
+                    for (Long aLong : workHolder.getSuperRunning()) {
                         if (Objects.equals(ActionUtil.getJobId(aLong.toString()), jobId)) {
                             exists = true;
                             TaskLog.warn("该任务正在执行，添加失败 {}", actionId);
@@ -840,7 +830,7 @@ public class Master {
         MasterWorkHolder workHolder = masterContext.getWorkMap().get(channel);
         masterContext.getWorkMap().remove(channel);
         if (workHolder != null) {
-            List<String> scheduleTask = workHolder.getHeartBeatInfo().getRunning();
+            Set<Long> scheduleTask = workHolder.getRunning();
 
             if (scheduleTask == null || scheduleTask.size() == 0) {
                 return;
@@ -864,8 +854,7 @@ public class Master {
                         SocketLog.warn("work重连成功:{}", newChannel.remoteAddress());
                         // 判断任务状态 无论是否成功，全部重新广播一遍
 
-                        for (String actionStr : scheduleTask) {
-                            Long action = Long.parseLong(actionStr);
+                        for (Long action : scheduleTask) {
                             heraAction = masterContext.getHeraJobActionService().findById(action);
                             //检测action表是否已经更新 如果更新 证明work的成功信号发送给了master已经广播
                             if (StatusEnum.SUCCESS.toString().equals(heraAction.getStatus())) {
@@ -911,7 +900,7 @@ public class Master {
                             }
                         }
                     } else {
-                        for (String action : scheduleTask) {
+                        for (Long action : scheduleTask) {
                             heraAction = masterContext.getHeraJobActionService().findById(action);
                             heraJobHistory = masterContext.getHeraJobHistoryService().findById(heraAction.getHistoryId());
                             heraJobHistory.setIllustrate("work断线超出十分钟，重新执行该任务");

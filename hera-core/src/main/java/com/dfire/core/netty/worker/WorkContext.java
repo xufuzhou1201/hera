@@ -77,6 +77,8 @@ public class WorkContext {
     private Map<HistoryPair, Job> running = new ConcurrentHashMap<>();
     private Map<HistoryPair, Job> manualRunning = new ConcurrentHashMap<>();
     private Map<Long, Job> debugRunning = new ConcurrentHashMap<>();
+    private Map<HistoryPair, Job> rerunRunning = new ConcurrentHashMap<>();
+    private Map<HistoryPair, Job> superRunning = new ConcurrentHashMap<>();
     private WorkHandler handler;
     private WorkClient workClient;
     /**

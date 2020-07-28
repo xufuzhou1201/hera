@@ -26,4 +26,9 @@ enum Operate {
 
     //设置机器信息
     SetWorkInfo = 6;
+
+    //执行重跑任务
+    Rerun = 7;
+    //执行超级恢复任务
+    SuperRecovery = 8;
 }

@@ -13,6 +13,7 @@ import com.dfire.common.util.BeanConvertUtils;
 import com.dfire.common.vo.JobElement;
 import com.dfire.config.HeraGlobalEnv;
 import com.dfire.core.emr.EmrJob;
+import com.dfire.core.emr.FixedEmr;
 import com.dfire.core.emr.WrapEmr;
 import com.dfire.logs.ErrorLog;
 
@@ -30,12 +31,12 @@ public class RunJobThreadPool extends ThreadPoolExecutor {
 
 
     private static ConcurrentHashMap<Runnable, JobElement> jobEmrType;
-    private EmrJob emr;
-    private HeraJobHistoryService jobHistoryService;
+    private final EmrJob emr;
+    private final HeraJobHistoryService jobHistoryService;
 
-    private HeraDebugHistoryService debugHistoryService;
+    private final HeraDebugHistoryService debugHistoryService;
 
-    private boolean emrCluster;
+    private final boolean emrCluster;
 
     public RunJobThreadPool(MasterContext masterContext, int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue, ThreadFactory threadFactory, RejectedExecutionHandler handler) {
         super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory, handler);
@@ -43,7 +44,7 @@ public class RunJobThreadPool extends ThreadPoolExecutor {
         jobHistoryService = masterContext.getHeraJobHistoryService();
         debugHistoryService = masterContext.getHeraDebugHistoryService();
         jobEmrType = new ConcurrentHashMap<>(maximumPoolSize);
-        emrCluster = HeraGlobalEnv.isEmrJob();
+        emrCluster = HeraGlobalEnv.isEmrJob() && FixedEmr.NAME.equals(HeraGlobalEnv.getEmrCluster());
     }
 
     public static List<Long> getWaitClusterJob(TriggerTypeEnum... typeEnum) {
@@ -158,6 +159,8 @@ public class RunJobThreadPool extends ThreadPoolExecutor {
             case SCHEDULE:
             case MANUAL_RECOVER:
             case MANUAL:
+            case AUTO_RERUN:
+            case SUPER_RECOVER:
                 HeraJobHistoryVo historyVo = BeanConvertUtils.convert(jobHistoryService.findById(element.getHistoryId()));
                 historyVo.getLog().appendHera(log);
                 jobHistoryService.updateHeraJobHistoryLog(BeanConvertUtils.convert(historyVo));

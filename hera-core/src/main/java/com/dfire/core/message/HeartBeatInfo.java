@@ -27,6 +27,10 @@ public class HeartBeatInfo {
 
     private List<String> debugRunning;
 
+    private List<String> rerunRunning;
+
+    private List<String> superRunning;
+
     private Long timestamp;
 
     private String date;
