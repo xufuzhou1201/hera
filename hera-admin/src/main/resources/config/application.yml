@@ -85,7 +85,7 @@ hera:
     principal:     #kerberos认证principal,如果hadoop 集群无需kerberos授权，则不填
   job:
     shell:
-      bin: sh
+      bin: bash
     hive:
       bin: hive
     spark-sql:
