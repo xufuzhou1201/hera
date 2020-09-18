@@ -1,8 +1,8 @@
-
+@[toc]
 # 前言
 >最近发现我总是站在我的角度来使用hera,每个功能都很清楚，但是对于使用者，他们是不清楚的，所以提供一篇hera操作文档。有问题可以在下面回复
 
-[开源地址,请点个start,谢谢](https://github.com/scxwhite/hera)
+[开源地址](https://github.com/scxwhite/hera)
 # 操作文档
 
 ## 登录和注册
@@ -108,6 +108,9 @@
 
 
 
+
+
+
 ## 任务管理
 任务管理主要是对调度中心任务的一些信息检索及查看，主要包含：任务详情、任务依赖、任务搜索、日志记录等
 ### 任务详情
@@ -116,6 +119,9 @@
 该界面展示所有任务的执行的状态，包括执行次数，执行时长，执行人，执行机器等信息。可以通过右上角的状态进行勾选想要查看的状态
 - 状态 选项有全部、成功、失败、运行中、等待等任务的几种状态
 - 日期 默认选择今天，可供使用者自己勾选
+
+
+
 
 同时，每一条记录都是支持点击查看运行记录详情，点击后的展开图如下
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/20191024194800115.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9zY3gtd2hpdGUuYmxvZy5jc2RuLm5ldA==,size_16,color_FFFFFF,t_70)
@@ -158,6 +164,14 @@ tips:
 
 >有一点需要注意，超级管理员可以看所有用户组中用户的操作记录。如果是普通用户只能看该组内的用户操作记录
 
+### 任务重跑
+在 `2.4.2` 版本新增了任务重跑功能
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200918112531229.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3N1MjAxNDUxMDQwMDk=,size_16,color_FFFFFF,t_70#pic_center)
+任务重跑，在任务重跑页面可以添加你需要重跑历史的任务 `id` 以及重跑的起始日期和结束日期，添加完成后等待系统调度即可。在任务重跑完成后会通过邮件、微信告警的方式通知创建者。另外，重跑过程中难免会出现由于网络、内存等原因导致的任务失败，此时可以点击右侧的失败记录查看执行失败的记录
+
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200918112748932.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3N1MjAxNDUxMDQwMDk=,size_16,color_FFFFFF,t_70#pic_center)
+如果你想再次调度这些失败的任务，那么点击下面的重跑所有即可
 ## 开发中心
 
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/20191024200116228.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9zY3gtd2hpdGUuYmxvZy5jc2RuLm5ldA==,size_16,color_FFFFFF,t_70)
@@ -360,15 +374,24 @@ tips:
 
 
 - 版本生成
-在赫拉中任务的执行需要版本一说，所以每个任务如果要执行都需要版本。赫拉本身会在每个小时的整点附近自动生成版本，如果某人想立刻生成版本，需要点击一下版本生成按钮（目前2.4及以下版本不支持依赖任务版本生成，仅支持定时任务，如果需要的话，可以先把任务设置为定时任务，生成版本后再切换回去）。
+在赫拉中任务的执行需要版本一说，所以每个任务如果要执行都需要版本。赫拉本身会在每个小时的整点附近自动生成版本，如果某人想立刻生成版本，需要点击一下版本生成按钮（目前2.4及以下版本不支持依赖任务版本生成，仅支持定时任务，如果需要的话，可以先把任务设置为定时任务，生成版本后再切换回去。2.4.1版本以上已经支持了依赖任务的版本生成）。
 - 依赖图
 依赖图与上面介绍的一样，不再叙述
 - 编辑
 默认情况下 **基本信息** 、 **脚本配置项** 与**脚本**是只读的状态，只有点击编辑后才能够进行编辑这些信息
-- 手动执行
+
+- 执行任务
+
+执行任务目前分为手动执行、手动恢复、超级恢复
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200918113109472.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3N1MjAxNDUxMDQwMDk=,size_16,color_FFFFFF,t_70#pic_center)
+
+1.手动执行
 执行一次该任务，执行成功不会通知下游依赖任务。手动执行的时候需要选择一个版本，如果没有版本就要等待版本生成或者手动生成
-- 手动恢复
+2. 手动恢复
 执行一次该任务，执行成功通知下游依赖任务。其它与手动执行一致
+3. 超级恢复
+该操作会触发下游所有依赖任务的执行，一般在某个任务数据执行错误，但下游任务已经执行过，来纠正下游任务数据使用。需要注意的是：下游任务收到通知会立刻执行，不会等待依赖任务全部执行完成。
+
 - 开启/关闭
 任务是否开启自动调度，默认是关闭状态。开启状态的任务失败会进行告警。
 
@@ -383,3 +406,12 @@ tips:
 
 
 
+---
+关注公众号获取最新文章哦
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20191105103919767.jpg)
+
+
+---
+# 接口文档
+本项目已集成swagger,请访问:
+http://localhost:8080/hera/doc.html

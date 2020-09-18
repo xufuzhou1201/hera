@@ -13,11 +13,13 @@ import com.dfire.common.service.HeraSsoService;
 import com.dfire.common.service.HeraUserService;
 import com.dfire.common.util.ActionUtil;
 import com.dfire.config.AdminCheck;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -30,6 +32,7 @@ import java.util.stream.Collectors;
  * @time: Created in 下午4:10 2018/6/14
  * @desc
  */
+@Api(value = "用户管理")
 @Controller
 @RequestMapping("/userManage/")
 public class UserManageController {
@@ -46,6 +49,7 @@ public class UserManageController {
 
     @RequestMapping(value = "/initUser", method = RequestMethod.GET)
     @ResponseBody
+    @ApiOperation(value = "获取用户组列表")
     public TableResponse initUser() {
         List<HeraUser> users = heraUserService.getAll();
         List<HeraUserVo> res;
@@ -68,7 +72,8 @@ public class UserManageController {
     @RequestMapping(value = "/sso/update", method = RequestMethod.POST)
     @ResponseBody
     @AdminCheck
-    public JsonResponse ssoUpdate(HeraSso sso) {
+    @ApiOperation(value = "更新用户")
+    public JsonResponse ssoUpdate(@ApiParam(value = "用户信息", required = true) HeraSso sso) {
         boolean success = heraSsoService.updateHeraSsoById(sso);
         return new JsonResponse(success, success ? "更新成功" : "更新失败");
     }
@@ -76,7 +81,8 @@ public class UserManageController {
     @RequestMapping(value = "/user/update", method = RequestMethod.POST)
     @ResponseBody
     @AdminCheck
-    public JsonResponse userUpdate(HeraUser user) {
+    @ApiOperation(value = "更新用户组")
+    public JsonResponse userUpdate(@ApiParam(value = "用户组信息", required = true) HeraUser user) {
         boolean success = heraUserService.update(user);
         return new JsonResponse(success, success ? "更新成功" : "更新失败");
     }
@@ -84,6 +90,7 @@ public class UserManageController {
     @RequestMapping(value = "/groups", method = RequestMethod.GET)
     @ResponseBody
     @AdminCheck
+    @ApiOperation(value = "获取所有用户组")
     public JsonResponse ssoGroups() {
         List<HeraUser> users = heraUserService.getGroups();
         return new JsonResponse(true, users.stream()
@@ -97,6 +104,7 @@ public class UserManageController {
 
     @RequestMapping(value = "/initSso", method = RequestMethod.GET)
     @ResponseBody
+    @ApiOperation(value = "获取所有用户列表")
     public TableResponse initSso() {
         List<HeraSso> ssoList = heraSsoService.getAll();
         if (ssoList == null || ssoList.size() == 0) {
@@ -116,18 +124,6 @@ public class UserManageController {
         return new TableResponse(ssoVoList.size(), 0, ssoVoList);
     }
 
-    @RequestMapping(value = "/editUser", method = RequestMethod.POST)
-    @ResponseBody
-    @AdminCheck
-    public JsonResponse editUser(@RequestBody HeraUser user) {
-        boolean success = heraUserService.update(user);
-        JsonResponse jsonResponse = new JsonResponse(true, "更新成功");
-        if (!success) {
-            jsonResponse.setMessage("更新失败");
-            jsonResponse.setSuccess(false);
-        }
-        return jsonResponse;
-    }
 
     /**
      * operateType: 1,执行删除操作，2，执行审核通过操作，3，执行审核拒绝操作
@@ -138,7 +134,10 @@ public class UserManageController {
     @RequestMapping(value = "/operateUser", method = RequestMethod.POST)
     @ResponseBody
     @AdminCheck
-    public JsonResponse operateUser(Integer id, String operateType, Integer userType) {
+    @ApiOperation(value = "用户操作接口")
+    public JsonResponse operateUser(@ApiParam(value = "用户组信息", required = true) Integer id
+            , @ApiParam(value = "操作类型，1：删除，2：同意，3：拒绝", required = true) String operateType
+            , @ApiParam(value = "用户类型，1：用户，0：用户组", required = true) Integer userType) {
         JsonResponse response = new JsonResponse(false, "更新失败");
         switch (UserType.parse(userType)) {
             case SSO:
@@ -240,11 +239,6 @@ public class UserManageController {
         Refuse("3");
         private String operateType;
 
-        @Override
-        public String toString() {
-            return operateType;
-        }
-
         OperateTypeEnum(String type) {
             this.operateType = type;
         }
@@ -254,6 +248,11 @@ public class UserManageController {
                     .filter(operate -> operate.toString().equals(operateType))
                     .findAny();
             return typeEnum.orElse(OperateTypeEnum.Refuse);
+        }
+
+        @Override
+        public String toString() {
+            return operateType;
         }
     }
 

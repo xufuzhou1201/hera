@@ -25,7 +25,7 @@ public interface HeraRerunService {
 
     boolean deleteById(Integer id);
 
-    Pair<Integer,List<HeraRerunVo>> findByPage(TablePageForm pageForm);
+    Pair<Integer,List<HeraRerunVo>> findByPage(TablePageForm pageForm,Integer status);
 
     List<HeraRerunVo> findByEnd(Integer isEnd);
 

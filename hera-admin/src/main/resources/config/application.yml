@@ -121,6 +121,7 @@ logging:
     org.springframework: ERROR
     com.dfire.common.mapper: ERROR
 
+
 # 发送配置邮件的发送者
 mail:
   host: smtp.mxhichina.com

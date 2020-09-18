@@ -1,6 +1,7 @@
 package com.dfire.core.netty.worker;
 
 
+import com.dfire.common.constants.Constants;
 import com.dfire.common.entity.vo.HeraDebugHistoryVo;
 import com.dfire.common.entity.vo.HeraJobHistoryVo;
 import com.dfire.common.util.ActionUtil;
@@ -280,38 +281,23 @@ public class WorkClient {
      */
     public void cancelDebugJob(Long debugId) {
         Job job = workContext.getDebugRunning().remove(debugId);
-        job.getJobContext().getDebugHistory().getLog().appendHera("任务被取消");
+        job.getJobContext().getDebugHistory().getLog().appendHera(Constants.CANCEL_JOB_MESSAGE);
         job.cancel();
     }
 
-    /**
-     * 取消手动执行的任务
-     *
-     * @param historyPair
-     */
-    public void cancelManualJob(HistoryPair historyPair) {
-        cancelJob(workContext.getManualRunning().remove(historyPair));
-    }
 
-    private void cancelJob(Job job) {
+    public void cancelJob(Job job) {
+        if (job == null) {
+            return;
+        }
         HeraJobHistoryVo history = job.getJobContext().getHeraJobHistory();
         String illustrate = history.getIllustrate();
         if (illustrate != null && illustrate.trim().length() > 0) {
-            history.setIllustrate(illustrate + ";手动取消该任务");
+            history.setIllustrate(illustrate + Constants.SEMICOLON + Constants.CANCEL_JOB_MESSAGE);
         } else {
-            history.setIllustrate("手动取消该任务");
+            history.setIllustrate(Constants.CANCEL_JOB_MESSAGE);
         }
         job.cancel();
-    }
-
-    /**
-     * 取消自动调度执行的任务
-     *
-     * @param historyPair
-     */
-    public void cancelScheduleJob(HistoryPair historyPair) {
-        cancelJob(workContext.getRunning().remove(historyPair));
-
     }
 
 
@@ -323,15 +309,15 @@ public class WorkClient {
      * @throws ExecutionException
      * @throws InterruptedException
      */
-    public void executeJobFromWeb(ExecuteKind kind, Long id) throws ExecutionException, InterruptedException {
-        RpcWebResponse.WebResponse response = WorkerHandleWebRequest.handleWebExecute(workContext, kind, id).get();
+    public void executeJobFromWeb(ExecuteKind kind, Long id) throws ExecutionException, InterruptedException, TimeoutException {
+        RpcWebResponse.WebResponse response = WorkerHandleWebRequest.handleWebExecute(workContext, kind, id).get(HeraGlobalEnv.getRequestTimeout(), TimeUnit.SECONDS);
         if (response.getStatus() == ResponseStatus.Status.ERROR) {
             ErrorLog.error(response.getErrorText());
         }
     }
 
-    public String cancelJobFromWeb(ExecuteKind kind, Long id) throws ExecutionException, InterruptedException {
-        RpcWebResponse.WebResponse webResponse = WorkerHandleWebRequest.handleCancel(workContext, kind, id).get();
+    public String cancelJobFromWeb(ExecuteKind kind, Long id) throws ExecutionException, InterruptedException, TimeoutException {
+        RpcWebResponse.WebResponse webResponse = WorkerHandleWebRequest.handleCancel(workContext, kind, id).get(HeraGlobalEnv.getRequestTimeout(), TimeUnit.SECONDS);
         if (webResponse.getStatus() == ResponseStatus.Status.ERROR) {
             ErrorLog.error(webResponse.getErrorText());
             return webResponse.getErrorText();
@@ -339,15 +325,15 @@ public class WorkClient {
         return "取消任务成功";
     }
 
-    public void updateJobFromWeb(String jobId) throws ExecutionException, InterruptedException {
-        RpcWebResponse.WebResponse webResponse = WorkerHandleWebRequest.handleUpdate(workContext, jobId).get();
+    public void updateJobFromWeb(String jobId) throws ExecutionException, InterruptedException, TimeoutException {
+        RpcWebResponse.WebResponse webResponse = WorkerHandleWebRequest.handleUpdate(workContext, jobId).get(HeraGlobalEnv.getRequestTimeout(), TimeUnit.SECONDS);
         if (webResponse.getStatus() == ResponseStatus.Status.ERROR) {
             ErrorLog.error(webResponse.getErrorText());
         }
     }
 
-    public String generateActionFromWeb(ExecuteKind kind, Long id) throws ExecutionException, InterruptedException {
-        RpcWebResponse.WebResponse response = WorkerHandleWebRequest.handleWebAction(workContext, kind, id).get();
+    public String generateActionFromWeb(ExecuteKind kind, Long id) throws ExecutionException, InterruptedException, TimeoutException {
+        RpcWebResponse.WebResponse response = WorkerHandleWebRequest.handleWebAction(workContext, kind, id).get(HeraGlobalEnv.getRequestTimeout(), TimeUnit.MINUTES);
         if (response.getStatus() == ResponseStatus.Status.ERROR) {
             ErrorLog.error("generate action error");
             return "生成版本失败";
@@ -355,8 +341,8 @@ public class WorkClient {
         return "生成版本成功";
     }
 
-    public Map<String, HeartBeatInfo> getJobQueueInfoFromWeb() throws ExecutionException, InterruptedException, InvalidProtocolBufferException {
-        RpcWebResponse.WebResponse response = WorkerHandleWebRequest.getJobQueueInfoFromMaster(workContext).get();
+    public Map<String, HeartBeatInfo> getJobQueueInfoFromWeb() throws ExecutionException, InterruptedException, InvalidProtocolBufferException, TimeoutException {
+        RpcWebResponse.WebResponse response = WorkerHandleWebRequest.getJobQueueInfoFromMaster(workContext).get(HeraGlobalEnv.getRequestTimeout(), TimeUnit.SECONDS);
         if (response.getStatus() == ResponseStatus.Status.ERROR) {
             ErrorLog.error("获取心跳信息失败:{}", response.getErrorText());
             return null;
@@ -384,8 +370,17 @@ public class WorkClient {
         return infoMap;
     }
 
-    public HashMap<String, WorkInfoVo> getAllWorkInfo() throws ExecutionException, InterruptedException, InvalidProtocolBufferException {
-        RpcWebResponse.WebResponse response = WorkerHandleWebRequest.getAllWorkInfoFromMaster(workContext).get();
+
+    public String increaseActionPriority(Long actionId) throws ExecutionException, InterruptedException, TimeoutException {
+        RpcWebResponse.WebResponse response = WorkerHandleWebRequest.increaseActionPriority(workContext, actionId).get(HeraGlobalEnv.getRequestTimeout(), TimeUnit.SECONDS);
+        if (response.getStatus() == ResponseStatus.Status.ERROR) {
+            return "优先级修改异常";
+        }
+        return "优先级修改成功";
+    }
+
+    public HashMap<String, WorkInfoVo> getAllWorkInfo() throws ExecutionException, InterruptedException, InvalidProtocolBufferException, TimeoutException {
+        RpcWebResponse.WebResponse response = WorkerHandleWebRequest.getAllWorkInfoFromMaster(workContext).get(HeraGlobalEnv.getRequestTimeout(), TimeUnit.SECONDS);
         if (response == null || response.getStatus() == ResponseStatus.Status.ERROR) {
             ErrorLog.error("获取work信息失败:{}", response.getErrorText());
             return null;
@@ -445,4 +440,12 @@ public class WorkClient {
         return workInfoHashMap;
     }
 
+    public String updateWorkFromWeb() throws ExecutionException, InterruptedException, TimeoutException {
+        RpcWebResponse.WebResponse response = WorkerHandleWebRequest.updateWorkFromWeb(workContext).get(HeraGlobalEnv.getRequestTimeout(), TimeUnit.SECONDS);
+        if (response.getStatus() == ResponseStatus.Status.ERROR) {
+            return "更新work失败";
+        }
+        return "更新work成功";
+
+    }
 }

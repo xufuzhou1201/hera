@@ -36,7 +36,7 @@ public class ActionUtil {
     /**
      * 当前小时版本格式
      */
-    public static final String ACTION_VERSION_HOUR = "yyyyMMddHH00000000";
+    public static final String ACTION_VERSION_HOUR = "yyyyMMddHHmm000000";
 
     /**
      * 初始化今天凌晨的版本
@@ -83,6 +83,10 @@ public class ActionUtil {
         }
         SimpleDateFormat sdf = new SimpleDateFormat(DEFAULT_FORMAT);
         return sdf.format(date);
+    }
+
+    public static String getDefaultFormatterDate(Long millis) {
+        return getDefaultFormatterDate(new Date(millis));
     }
 
 
@@ -142,8 +146,8 @@ public class ActionUtil {
 
     public static long version2timestamp(Long version) throws ParseException {
         String str = version.toString();
-        String realStr = str.substring(0, str.length() - 4);
-        SimpleDateFormat df = new SimpleDateFormat("yyyyMMddHHmmss");
+        String realStr = str.substring(0, 12);
+        SimpleDateFormat df = new SimpleDateFormat("yyyyMMddHHmm");
         Date parse = df.parse(realStr);
         return parse.getTime();
     }
@@ -255,7 +259,10 @@ public class ActionUtil {
         return (hour <= 9 ? "0" + hour : hour) + ":" + (minute <= 9 ? "0" + minute : minute);
     }
 
-    public static Long getMillis() {
-        return System.currentTimeMillis();
+
+    public static Integer getHourOfDay() {
+        return new DateTime().getHourOfDay();
     }
+
+
 }

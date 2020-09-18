@@ -2,16 +2,17 @@ package com.dfire.common.service.impl;
 
 import com.dfire.common.constants.Constants;
 import com.dfire.common.entity.HeraJobMonitor;
+import com.dfire.common.entity.HeraSso;
 import com.dfire.common.entity.vo.HeraJobMonitorVo;
 import com.dfire.common.mapper.HeraJobMonitorMapper;
 import com.dfire.common.service.HeraJobMonitorService;
+import com.dfire.common.service.HeraSsoService;
 import com.dfire.common.util.ActionUtil;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 /**
  * @author xiaosuda
@@ -22,6 +23,9 @@ public class HeraJobMonitorServiceImpl implements HeraJobMonitorService {
 
     @Autowired
     private HeraJobMonitorMapper heraJobMonitorMapper;
+
+    @Autowired
+    private HeraSsoService heraSsoService;
 
     @Override
     public boolean addMonitor(String userId, Integer jobId) {
@@ -58,6 +62,20 @@ public class HeraJobMonitorServiceImpl implements HeraJobMonitorService {
     }
 
     @Override
+    public Set<HeraSso> getMonitorUser(Integer jobId) {
+        Set<HeraSso> monitorUser = new HashSet<>();
+        Optional.ofNullable(this.findByJobId(jobId))
+                .map(HeraJobMonitor::getUserIds)
+                .ifPresent(ids -> Arrays.stream(ids.split(Constants.COMMA))
+                        .filter(StringUtils::isNotBlank)
+                        .forEach(id -> {
+                            Optional.ofNullable(heraSsoService.findSsoById(Integer.parseInt(id)))
+                                    .ifPresent(monitorUser::add);
+                        }));
+        return monitorUser;
+    }
+
+    @Override
     public List<HeraJobMonitor> findAll() {
         return heraJobMonitorMapper.selectAll();
     }
@@ -74,5 +92,10 @@ public class HeraJobMonitorServiceImpl implements HeraJobMonitorService {
         }
         Integer update = heraJobMonitorMapper.update(jobId, userIds);
         return update != null && update > 0;
+    }
+
+    @Override
+    public List<Integer> findBySsoId(Integer ssoId) {
+        return heraJobMonitorMapper.selectByUser(ssoId);
     }
 }

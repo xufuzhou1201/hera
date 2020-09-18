@@ -75,6 +75,10 @@ public final class RpcWebOperate {
      * <code>GetAllWorkInfo = 6;</code>
      */
     GetAllWorkInfo(6),
+    /**
+     * <code>UpdateConf = 7;</code>
+     */
+    UpdateConf(7),
     UNRECOGNIZED(-1),
     ;
 
@@ -134,6 +138,10 @@ public final class RpcWebOperate {
      * <code>GetAllWorkInfo = 6;</code>
      */
     public static final int GetAllWorkInfo_VALUE = 6;
+    /**
+     * <code>UpdateConf = 7;</code>
+     */
+    public static final int UpdateConf_VALUE = 7;
 
 
     public final int getNumber() {
@@ -161,6 +169,7 @@ public final class RpcWebOperate {
         case 4: return GenerateAction;
         case 5: return GetAllHeartBeatInfo;
         case 6: return GetAllWorkInfo;
+        case 7: return UpdateConf;
         default: return null;
       }
     }
@@ -222,12 +231,12 @@ public final class RpcWebOperate {
       descriptor;
   static {
     java.lang.String[] descriptorData = {
-      "\n\021web_operate.proto*\215\001\n\nWebOperate\022\r\n\tUp" +
+      "\n\021web_operate.proto*\235\001\n\nWebOperate\022\r\n\tUp" +
       "dateJob\020\000\022\016\n\nExecuteJob\020\001\022\r\n\tCancelJob\020\002" +
       "\022\020\n\014ExecuteDebug\020\003\022\022\n\016GenerateAction\020\004\022\027" +
       "\n\023GetAllHeartBeatInfo\020\005\022\022\n\016GetAllWorkInf" +
-      "o\020\006B%\n\022com.dfire.protocolB\rRpcWebOperate" +
-      "H\001b\006proto3"
+      "o\020\006\022\016\n\nUpdateConf\020\007B%\n\022com.dfire.protoco" +
+      "lB\rRpcWebOperateH\001b\006proto3"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
         new com.google.protobuf.Descriptors.FileDescriptor.    InternalDescriptorAssigner() {

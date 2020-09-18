@@ -1,9 +1,7 @@
 package com.dfire.core.netty.worker.request;
 
 import com.dfire.common.entity.HeraJobHistory;
-import com.dfire.common.entity.vo.HeraDebugHistoryVo;
-import com.dfire.common.enums.StatusEnum;
-import com.dfire.common.util.BeanConvertUtils;
+import com.dfire.core.job.Job;
 import com.dfire.core.netty.worker.HistoryPair;
 import com.dfire.core.netty.worker.WorkContext;
 import com.dfire.logs.ErrorLog;
@@ -11,8 +9,7 @@ import com.dfire.logs.SocketLog;
 import com.dfire.protocol.*;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.util.Map;
 import java.util.concurrent.Future;
 
 /**
@@ -29,12 +26,19 @@ public class WorkHandleCancel {
                     .build();
 
             Long id = Long.parseLong(cancelMessage.getId());
-            if (cancelMessage.getEk() == JobExecuteKind.ExecuteKind.DebugKind) {
-                return cancelDebug(workContext, request, id);
-            } else if (cancelMessage.getEk() == JobExecuteKind.ExecuteKind.ScheduleKind) {
-                return cancelSchedule(workContext, request, id);
-            } else if (cancelMessage.getEk() == JobExecuteKind.ExecuteKind.ManualKind) {
-                return cancelManual(workContext, request, id);
+            switch (cancelMessage.getEk()) {
+                case ManualKind:
+                    return cancelJob(workContext, request, id, workContext.getManualRunning());
+                case ScheduleKind:
+                    return cancelJob(workContext, request, id, workContext.getRunning());
+                case SuperRecoveryKind:
+                    return cancelJob(workContext, request, id, workContext.getSuperRunning());
+                case AutoRerunKind:
+                    return cancelJob(workContext, request, id, workContext.getRerunRunning());
+                case DebugKind:
+                    return cancelDebug(workContext, request, id);
+                default:
+                    ErrorLog.error("不支持的取消类型:" + cancelMessage.getEk().name());
             }
         } catch (InvalidProtocolBufferException e) {
             ErrorLog.error("解析异常", e);
@@ -42,62 +46,13 @@ public class WorkHandleCancel {
         return null;
     }
 
-    /**
-     * 取消执行手动任务，先判断任务是否在运行队列中，再执行取消任务逻辑
-     *
-     * @param workContext
-     * @param request
-     * @param historyId
-     * @return
-     */
-    private Future<RpcResponse.Response> cancelManual(WorkContext workContext, RpcRequest.Request request, Long historyId) {
-        HeraJobHistory heraJobHistory = workContext.getHeraJobHistoryService().findById(historyId);
-        final Long actionId = heraJobHistory.getActionId();
-        SocketLog.info("worker receive cancel manual job, actionId =" + actionId);
-        HistoryPair historyPair = new HistoryPair(actionId, historyId);
-        if (!workContext.getManualRunning().containsKey(historyPair)) {
-            return workContext.getWorkExecuteThreadPool().submit(() -> RpcResponse.Response.newBuilder()
-                    .setRid(request.getRid())
-                    .setOperate(RpcOperate.Operate.Cancel)
-                    .setStatusEnum(ResponseStatus.Status.ERROR)
-                    .setErrorText("任务已经执行完成")
-                    .build());
-        }
-        return workContext.getWorkExecuteThreadPool().submit(() -> {
-            workContext.getWorkClient().cancelManualJob(historyPair);
-            return RpcResponse.Response.newBuilder()
-                    .setRid(request.getRid())
-                    .setOperate(RpcOperate.Operate.Cancel)
-                    .setStatusEnum(ResponseStatus.Status.OK)
-                    .build();
-        });
-    }
 
-    /**
-     * 取消执行调度任务，先判断任务是否在运行队列中，再执行取消任务逻辑
-     *
-     * @param workContext
-     * @param request
-     * @param historyId
-     * @return
-     */
-    private Future<RpcResponse.Response> cancelSchedule(WorkContext workContext, RpcRequest.Request request, Long historyId) {
+    private Future<RpcResponse.Response> cancelJob(WorkContext workContext, RpcRequest.Request request, Long historyId, Map<HistoryPair, Job> running) {
         HeraJobHistory heraJobHistory = workContext.getHeraJobHistoryService().findById(historyId);
         Long actionId = heraJobHistory.getActionId();
-        SocketLog.info("worker receive cancel schedule job, actionId =" + actionId);
-
-        HistoryPair historyPair = new HistoryPair(actionId, historyId);
-
-        if (!workContext.getRunning().containsKey(historyPair)) {
-            return workContext.getWorkExecuteThreadPool().submit(() -> RpcResponse.Response.newBuilder()
-                    .setRid(request.getRid())
-                    .setOperate(RpcOperate.Operate.Cancel)
-                    .setStatusEnum(ResponseStatus.Status.ERROR)
-                    .setErrorText("运行任务中查无此任务")
-                    .build());
-        }
+        SocketLog.info("worker receive cancel job, actionId =" + actionId);
         return workContext.getWorkExecuteThreadPool().submit(() -> {
-            workContext.getWorkClient().cancelScheduleJob(historyPair);
+            workContext.getWorkClient().cancelJob(running.get(new HistoryPair(actionId, historyId)));
             return RpcResponse.Response.newBuilder()
                     .setRid(request.getRid())
                     .setOperate(RpcOperate.Operate.Cancel)
@@ -108,36 +63,16 @@ public class WorkHandleCancel {
 
     /**
      * 取消执行开发中心任务，先判断任务是否在运行队列中，再执行取消任务逻辑
-     *
-     * @param workContext
-     * @param request
-     * @param debugId
-     * @return
      */
     private Future<RpcResponse.Response> cancelDebug(WorkContext workContext, RpcRequest.Request request, Long debugId) {
-        Future<RpcResponse.Response> future;
-        if (!workContext.getDebugRunning().containsKey(debugId)) {
-            future = workContext.getWorkExecuteThreadPool().submit(() -> RpcResponse.Response.newBuilder()
+        return workContext.getWorkExecuteThreadPool().submit(() -> {
+            workContext.getWorkClient().cancelDebugJob(debugId);
+            return RpcResponse.Response.newBuilder()
                     .setRid(request.getRid())
                     .setOperate(RpcOperate.Operate.Cancel)
-                    .setStatusEnum(ResponseStatus.Status.ERROR)
-                    .setErrorText("运行任务中查无此任务")
-                    .build());
-            HeraDebugHistoryVo debugHistory = workContext.getHeraDebugHistoryService().findById(debugId);
-            debugHistory.setStatus(StatusEnum.FAILED);
-            debugHistory.setEndTime(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
-            workContext.getHeraDebugHistoryService().update(BeanConvertUtils.convert(debugHistory));
-        } else {
-            future = workContext.getWorkExecuteThreadPool().submit(() -> {
-                workContext.getWorkClient().cancelDebugJob(debugId);
-                return RpcResponse.Response.newBuilder()
-                        .setRid(request.getRid())
-                        .setOperate(RpcOperate.Operate.Cancel)
-                        .setStatusEnum(ResponseStatus.Status.OK)
-                        .build();
-            });
-        }
-        return future;
+                    .setStatusEnum(ResponseStatus.Status.OK)
+                    .build();
+        });
     }
 
 }

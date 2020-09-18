@@ -68,10 +68,18 @@ public class HeraRerunServiceImpl implements HeraRerunService {
     }
 
     @Override
-    public Pair<Integer, List<HeraRerunVo>> findByPage(TablePageForm pageForm) {
-        return Optional.of(heraRerunMapper.selectAll(pageForm.getStartPos(), pageForm.getLimit()))
-                .map(rerunList -> Pair.of(heraRerunMapper.selectCount(), rerunList.stream().map(this::getVo).collect(Collectors.toList())))
+    public Pair<Integer, List<HeraRerunVo>> findByPage(TablePageForm pageForm, Integer status) {
+        if(status == -1) {
+            return Optional.of(heraRerunMapper.selectAll(pageForm.getStartPos(), pageForm.getLimit()))
+                    .map(rerunList -> Pair.of(heraRerunMapper.selectCount(), rerunList.stream().map(this::getVo).collect(Collectors.toList())))
+                    .orElseThrow(() -> new NullPointerException("can not found hera_rerun record in db"));
+        }
+
+        return Optional.of(heraRerunMapper.selectAllByStatus(pageForm.getStartPos(), pageForm.getLimit(),status))
+                .map(rerunList -> Pair.of(heraRerunMapper.selectCountByStatus(status), rerunList.stream().map(this::getVo).collect(Collectors.toList())))
                 .orElseThrow(() -> new NullPointerException("can not found hera_rerun record in db"));
+
+
     }
 
     @Override

@@ -7,6 +7,8 @@ import com.dfire.common.service.HeraJobService;
 import com.dfire.common.util.StringUtil;
 import com.dfire.form.JobSearchForm;
 import com.dfire.monitor.service.JobManageService;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -43,22 +45,25 @@ public class JobManageController extends BaseHeraController {
     @Qualifier("heraJobMemoryService")
     private HeraJobService heraJobService;
 
-    
     /**
-     * 任务详情
+     * 今日任务详情
+     *
+     * @param status 任务状态
      * @return 历史结果
      */
     @RequestMapping(value = "history", method = RequestMethod.GET)
     @ResponseBody
-    public JsonResponse findJobHistoryByStatus(@RequestParam("status") String status, @RequestParam("begindt") String begindt, @RequestParam("enddt") String enddt) {
-    	return jobManageService.findJobHistoryByStatus(status, begindt,enddt);
+    @ApiOperation("任务执行详情")
+    public JsonResponse findJobHistoryByStatus(@RequestParam("status") @ApiParam(value = "任务状态", required = true) String status
+            , @RequestParam("begindt") @ApiParam(value = "开始日期", required = true) String begindt
+            , @RequestParam("enddt") @ApiParam(value = "结束日志", required = true) String enddt) {
+        return jobManageService.findJobHistoryByStatus(status, begindt, enddt);
     }
-    
-    
 
     @RequestMapping(value = "search", method = RequestMethod.GET)
     @ResponseBody
-    public JsonResponse jobSearch(JobSearchForm searchForm) {
+    @ApiOperation("任务搜索")
+    public JsonResponse jobSearch(@ApiParam(value = "任务搜索对象", required = true) JobSearchForm searchForm) {
         List<HeraJob> jobList = heraJobService.getAll();
 
         //全部小写处理

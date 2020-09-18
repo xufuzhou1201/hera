@@ -37,4 +37,7 @@ public interface HeraJobMonitorMapper {
     @Update("update hera_job_monitor set user_ids =#{userIds} where job_id = #{jobId} ")
     Integer update(@Param("jobId") Integer jobId,
                    @Param("userIds") String userIds);
+
+    @Select("select job_id from hera_job_monitor where find_in_set(#{ssoId},user_ids)")
+    List<Integer> selectByUser(Integer ssoId);
 }

@@ -33,8 +33,8 @@ public class HeraRecordServiceImpl implements HeraRecordService {
             record.setContent("");
         }
 
-        record.setGmtModified(ActionUtil.getMillis());
-        record.setGmtCreate(ActionUtil.getMillis());
+        record.setGmtModified(ActionUtil.getCurrentMillis());
+        record.setGmtCreate(ActionUtil.getCurrentMillis());
         return recordMapper.insert(record) > 1;
     }
 

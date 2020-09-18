@@ -1,5 +1,6 @@
 package com.dfire.controller;
 
+import com.alibaba.fastjson.JSONObject;
 import com.dfire.common.constants.Constants;
 import com.dfire.common.entity.HeraRerun;
 import com.dfire.common.entity.form.HeraRerunForm;
@@ -7,21 +8,28 @@ import com.dfire.common.entity.model.JsonResponse;
 import com.dfire.common.entity.model.TablePageForm;
 import com.dfire.common.entity.model.TableResponse;
 import com.dfire.common.entity.vo.HeraRerunVo;
+import com.dfire.common.service.HeraJobHistoryService;
 import com.dfire.common.service.HeraJobService;
 import com.dfire.common.service.HeraRerunService;
 import com.dfire.common.util.ActionUtil;
 import com.dfire.common.util.Pair;
 import com.dfire.config.RunAuth;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * desc:
@@ -31,6 +39,7 @@ import java.util.List;
  */
 @RequestMapping("/rerun/")
 @Controller
+@Api("重跑任务接口")
 public class HeraRerunController extends BaseHeraController {
 
 
@@ -41,22 +50,74 @@ public class HeraRerunController extends BaseHeraController {
     @Qualifier("heraJobMemoryService")
     private HeraJobService heraJobService;
 
+    @Autowired
+    private HeraJobHistoryService heraJobHistoryService;
+
     @RequestMapping(value = "/list", method = RequestMethod.GET)
     @ResponseBody
-    public TableResponse list(TablePageForm pageForm) {
-        Pair<Integer, List<HeraRerunVo>> res = heraRerunService.findByPage(pageForm);
+    @ApiOperation("任务重跑列表")
+    public TableResponse list(@ApiParam(value = "分页参数", required = true) TablePageForm pageForm,
+                              @ApiParam(value = "状态：-1所有，0开启，1结束", required = true) Integer status) {
+        Pair<Integer, List<HeraRerunVo>> res = heraRerunService.findByPage(pageForm, status);
         return new TableResponse(res.fst(), 0, res.snd());
     }
 
+    @RequestMapping(value = "/failed", method = RequestMethod.GET)
+    @ResponseBody
+    @ApiOperation("重跑失败列表查询")
+    public TableResponse failedList(@ApiParam(value = "分页参数", required = true) TablePageForm pageForm, @ApiParam(value = "重跑id", required = true) Integer rerunId) {
+        HeraRerunVo heraRerun = heraRerunService.findVoById(rerunId);
+        Pair<Integer, List<JSONObject>> res = heraJobHistoryService.findRerunFailed(heraRerun.getJobId()
+                , String.valueOf(rerunId)
+                , ActionUtil.getActionByDateStr(heraRerun.getStartTime()) - 1, pageForm);
+        return new TableResponse(res.fst(), 0, res.snd());
+    }
+
+    @RequestMapping(value = "/failed", method = RequestMethod.POST)
+    @ResponseBody
+    @ApiOperation("重跑所有失败记录")
+    public JsonResponse rerunFailed(@ApiParam(value = "重跑id", required = true) Integer rerunId) {
+        HeraRerunVo lastRerun = heraRerunService.findVoById(rerunId);
+        String rerunFailedCount = lastRerun.getExtra().getOrDefault(Constants.ACTION_FAILED_NUM, "0");
+        if ("0".equals(rerunFailedCount)) {
+            return new JsonResponse(false, "无失败记录，无需重跑");
+        }
+        Integer realFailedCount = heraJobHistoryService.findRerunFailedCount(lastRerun.getJobId(), String.valueOf(lastRerun.getId()), ActionUtil.getActionByDateStr(lastRerun.getStartTime()) - 1);
+
+        if (realFailedCount != Integer.parseInt(rerunFailedCount)) {
+            return new JsonResponse(false, "执行记录可能被删除，无法重跑失败");
+        }
+
+        HeraRerunVo newRerun = new HeraRerunVo();
+        newRerun.setStartTime(lastRerun.getStartTime());
+        newRerun.setEndTime(lastRerun.getEndTime());
+        newRerun.setGmtCreate(ActionUtil.getTodayString());
+        newRerun.setName("重跑失败-" + lastRerun.getName());
+        newRerun.setJobId(lastRerun.getJobId());
+        newRerun.setSsoName(lastRerun.getSsoName());
+        Map<String, String> extra = new HashMap<>(2);
+        extra.put(Constants.RERUN_THREAD, lastRerun.getExtra().getOrDefault(Constants.RERUN_THREAD, "1"));
+        extra.put(Constants.RERUN_FAILED, Boolean.TRUE.toString());
+        extra.put(Constants.ACTION_DONE, Boolean.TRUE.toString());
+        extra.put(Constants.ACTION_PROCESS_NUM, "0");
+        extra.put(Constants.ACTION_ALL_NUM, rerunFailedCount);
+        extra.put(Constants.LAST_RERUN_ID, String.valueOf(lastRerun.getId()));
+        newRerun.setExtra(extra);
+        heraRerunService.add(newRerun);
+        return new JsonResponse(true, "添加重跑任务成功");
+    }
+
+
     @RequestMapping(value = "/status", method = RequestMethod.PUT)
     @ResponseBody
-    public JsonResponse update(Integer id, Integer isEnd) {
+    @ApiOperation("重跑状态更改")
+    public JsonResponse update(@ApiParam(value = "重跑id", required = true) Integer id,
+                               @ApiParam(value = "状态：0开启，1结束", required = true) Integer isEnd) {
 
         if (isEnd == 0) {
             HeraRerunVo heraRerun = heraRerunService.findVoById(id);
 
-
-            if (Integer.parseInt(heraRerun.getExtra().get(Constants.ACTION_ALL_NUM)) <= Integer.parseInt(heraRerun.getExtra().get(Constants.ACTION_PROCESS_NUM))) {
+            if (Integer.parseInt(heraRerun.getExtra().getOrDefault(Constants.ACTION_ALL_NUM, String.valueOf(Integer.MAX_VALUE))) <= Integer.parseInt(heraRerun.getExtra().getOrDefault(Constants.ACTION_PROCESS_NUM, "0"))) {
                 return new JsonResponse(false, "重跑任务已经结束,无法开启");
             }
 
@@ -82,33 +143,60 @@ public class HeraRerunController extends BaseHeraController {
     @RequestMapping(value = "/add", method = RequestMethod.POST)
     @ResponseBody
     @RunAuth
-    public JsonResponse add(Integer jobId, HeraRerunForm rerunForm) {
+    @Transactional(rollbackFor = Exception.class)
+    @ApiOperation("重跑任务添加")
+    public JsonResponse add(@ApiParam(value = "任务id", required = false) Integer jobId
+            , @ApiParam(value = "重跑json对象，see：HeraRerunForm", required = true) String rerunJson) {
+
+        JSONObject rerunObj = JSONObject.parseObject(rerunJson);
+
+        HeraRerunForm rerunForm = new HeraRerunForm();
+
+        rerunForm.setName(rerunObj.getString("name"));
+
+        rerunForm.setJobId(rerunObj.getInteger("jobId"));
+
+        rerunForm.setThreads(rerunObj.getString("threads"));
 
         if (StringUtils.isBlank(rerunForm.getName()) || rerunForm.getName().length() < 4) {
             return new JsonResponse(false, "重跑名称不可少，且最短4个字");
         }
 
-        if (heraJobService.findMemById(jobId) == null) {
+        if (rerunForm.getJobId() == null || heraJobService.findMemById(rerunForm.getJobId()) == null) {
             return new JsonResponse(false, "任务ID不存在");
         }
+        Map<String, String> timeMap = new HashMap<>(rerunObj.size());
 
-        Integer count = heraRerunService.findCntByJob(rerunForm.getJobId(), 0);
 
+        for (Map.Entry<String, Object> entry : rerunObj.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+            if (key.startsWith(Constants.RERUN_START_TIME) || key.startsWith(Constants.RERUN_END_TIME)) {
+                if (value == null || StringUtils.isBlank(entry.getValue().toString())) {
+                    return new JsonResponse(false, "重跑时间不允许为空");
+                }
+                timeMap.put(key, String.valueOf(value));
+            }
 
-        if (count > 0) {
-            return new JsonResponse(false, "已经存在正在执行的重跑任务，请等待重跑完毕或者手动停止后新建 ");
+        }
+        int dateSize = timeMap.size() / 2;
+
+        for (int i = 0; i < dateSize; i++) {
+            String startTime = timeMap.get(Constants.RERUN_START_TIME + i);
+            String endTime = timeMap.get(Constants.RERUN_END_TIME + i);
+            heraRerunService.add(HeraRerunVo.builder()
+                    .jobId(rerunForm.getJobId())
+                    .name(rerunForm.getName())
+                    .startTime(startTime)
+                    .endTime(endTime)
+                    .gmtCreate(ActionUtil.getTodayString())
+                    .ssoName(getSsoName())
+                    .extra(Collections.singletonMap(Constants.RERUN_THREAD, rerunForm.getThreads()))
+                    .build());
+
         }
 
-        boolean res;
-        return new JsonResponse(res = heraRerunService.add(HeraRerunVo.builder()
-                .jobId(rerunForm.getJobId())
-                .name(rerunForm.getName())
-                .startTime(rerunForm.getStartTime())
-                .endTime(rerunForm.getEndTime())
-                .gmtCreate(ActionUtil.getTodayString())
-                .ssoName(getSsoName())
-                .extra(Collections.singletonMap(Constants.RERUN_THREAD, rerunForm.getThreads()))
-                .build()), res ? "添加成功" : "添加失败");
+        return new JsonResponse(true, "添加成功");
     }
 
 

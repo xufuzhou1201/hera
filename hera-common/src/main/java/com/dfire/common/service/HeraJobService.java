@@ -1,9 +1,8 @@
 package com.dfire.common.service;
 
 import com.dfire.common.entity.HeraJob;
-import com.dfire.common.entity.model.JsonResponse;
 import com.dfire.common.entity.vo.HeraJobTreeNodeVo;
-import com.dfire.graph.JobRelation;
+import com.dfire.common.enums.RunAuthType;
 
 import java.util.List;
 import java.util.Map;
@@ -40,7 +39,7 @@ public interface HeraJobService {
      *
      * @return
      */
-    Map<String, List<HeraJobTreeNodeVo>> buildJobTree(String owner);
+    Map<String, List<HeraJobTreeNodeVo>> buildJobTree(String owner,Integer ssoId);
 
     boolean changeSwitch(Integer id, Integer status);
 
@@ -66,6 +65,5 @@ public interface HeraJobService {
 
     Integer selectMaxId();
 
-    HeraJob copyJobFromExistsJob(Integer jobId);
-
+    String checkDependencies(Integer xId, RunAuthType type);
 }

@@ -69,7 +69,7 @@
 
 ## 功能
 
- - 支持任务的定时调度、依赖调度、手动调度、手动恢复
+ - 支持任务的定时调度、依赖调度、手动调度、手动恢复、超级恢复、重跑历史
  - 支持丰富的任务类型：`shell,hive,python,spark-sql,java`
  - 可视化的任务`DAG`图展示，任务的执行严格按照任务的依赖关系执行
  - 某个任务的上、下游执行状况查看，通过任务依赖图可以清楚的判断当前任务为何还未执行，删除该任务会影响那些任务。
@@ -103,165 +103,29 @@
 此时可以在`hera/hera-admin/resources`目录下找到`application.yml`文件。在文件里修改数据源`hera`的数据源(修改`druid.datasource`下的配置)即可进行下面的操作。
 
 ```yml
-spring:
-    profiles:
-        active: @env@	##当前环境 打包时通过-P来指定
-    http:
-        multipart:
-          max-file-size: 100Mb    #允许上传文件的最大大小
-          max-request-size: 100Mb  #允许上传文件的最大大小
-    freemarker:
-      allow-request-override: true
-      cache: false
-      check-template-location: true
-      charset: utf-8
-      content-type: text/html
-      expose-request-attributes: false
-      expose-session-attributes: false
-      expose-spring-macro-helpers: false
-      suffix: .ftl
-      template-loader-path: classpath:/templates/
-      request-context-attribute: request
-
+## 省略部分
 druid:
   datasource:
     username: root  #数据库用户名
-    password: XIAOSUDA      #数据库密码
+    password: moye      #数据库密码
     driver-class-name: com.mysql.jdbc.Driver  #数据库驱动
     url: jdbc:mysql://localhost:3306/hera?characterEncoding=utf-8&amp;zeroDateTimeBehavior=convertToNull&amp;autoReconnect=true&allowMultiQueries=true
-    initial-size: 5    #初始化连接池数量
-    min-idle: 1        #最小生存连接数
-    max-active: 16     #最大连接池数量
-    max-wait: 5000 #获取连接时最大等待时间，单位毫秒。配置了maxWait之后，缺省启用公平锁，并发效率会有所下降，如果需要可以通过配置useUnfairLock属性为true使用非公平锁。
-    time-between-connect-error-millis: 60000  # Destroy线程会检测连接的间隔时间，如果连接空闲时间大于等于minEvictableIdleTimeMillis则关闭物理连接，单位是毫秒
-    min-evictable-idle-time-millis: 300000  # 连接保持空闲而不被驱逐的最长时间，单位是毫秒
-    test-while-idle: true    #申请连接的时候,如果检测到连接空闲时间大于timeBetweenEvictionRunsMillis，执行validationQuery检测连接是否有效
-    test-on-borrow: true    #申请连接时执行validationQuery检测连接是否有效
-    test-on-return: false   # 归还连接时执行validationQuery检测连接是否有效
-    connection-init-sqls: set names utf8mb4
-    validation-query: select 1                #用来检测连接是否有效的sql，要求是一个查询语句。如果validationQuery为null，testOnBorrow、testOnReturn、testWhileIdle都不会其作用。
-    validation-query-timeout: 1                #单位：秒，检测连接是否有效的超时时间。底层调用jdbc Statement对象的void setQueryTimeout(int seconds)方法
-    log-abandoned: true
-    stat-mergeSql: true
-    filters: stat,wall,log4j
-    connection-properties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=5000
-
-server:
-  port: 8080
-  context-path: /hera
-
-clean:
-   path: ${server.context-path}
-#hera全局配置
-hera:
-   defaultWorkerGroup : 1 #默认worker的host组id
-   preemptionMasterGroup : 1  #抢占master的host组id
-   excludeFile: jar;war
-   maxMemRate : 0.80       #已使用内存占总内存的最大比例,默认0.80。当worker内存使用达到此值时将不会再向此work发任务
-   maxCpuLoadPerCore : 1.0   #cpu load per core等于最近1分钟系统的平均cpu负载÷cpu核心数量，默认1.0。当worker平均负载使用达到此值时将不会再向此work发任务
-   scanRate : 1000        #任务队列扫描频率(毫秒)
-   systemMemUsed : 4000  # 系统占用内存	
-   perTaskUseMem : 500   # 假设每个任务使用内存500M
-   requestTimeout: 10000 # 异步请求超时时间	
-   channelTimeout: 1000 # netty请求超时时间		
-
-   heartBeat : 3           # 心跳传递时间频率
-   downloadDir : /opt/logs/spring-boot
-   hdfsUploadPath : /hera/hdfs-upload-dir/ #此处必须是hdfs路径，所有的上传附件都会存放在下面路径上.注意:必须保证启动hera项目的用户是此文件夹的所有者，否则会导致上传错误
-   schedule-group : online
-   maxParallelNum: 2000   #master 允许的最大并行任务 当大于此数值 将会放在阻塞队列中
-   connectPort : 9887 #netty通信的端口
-   admin: biadmin         # admin用户
-   taskTimeout: 12  #单个任务执行的最大时间  单位：小时
-   env: @env@
-
-# 发送配置邮件的发送者
-mail:
-  host: smtp.mxhichina.com
-  protocol: smtp
-  port: 465
-  user: xxx
-  password: xxx
-
-logging:
-  config: classpath:logback-spring.xml
-  path: /opt/logs/spring-boot
-  level:
-    root: INFO
-    org.springframework: ERROR
-    com.dfire.common.mapper: ERROR
-
-
-mybatis:
-  configuration:
-    mapUnderscoreToCamelCase: true
-#spark 配置
-spark :
-  address : jdbc:hive2://localhost:10000
-  driver : org.apache.hive.jdbc.HiveDriver
-  username : root
-  password : root
-  master : --master yarn
-  driver-memory : --driver-memory 1g
-  driver-cores : --driver-cores 1
-  executor-memory : -- executor-memory 1g
-  executor-cores : --executor-cores 1
-
----
-## 开发环境
-spring:
-  profiles: dev
-
-logging:
-  level:
-    com.dfire.logs.ScheduleLog: ERROR
-    com.dfire.logs.HeartLog: ERROR
-
----
-## 日常环境  通常与开发环境一致
-spring:
-  profiles: daily
-
----
-## 预发环境
-spring:
-  profiles: pre
-druid:
-  datasource:
-    url: jdbc:mysql://localhost:3306/lineage?characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull&amp;autoReconnect=true&allowMultiQueries=true
-    username: root
-    password: root
-#spark 配置
-spark :
-  address : jdbc:hive2://localhost:10000  #spark地址
-  master : --master yarn
-  driver-memory : --driver-memory 2g
-  driver-cores : --driver-cores 1
-  executor-memory : -- executor-memory 2g
-  executor-cores : --executor-cores 1
----
-## 正式环境
-spring:
-  profiles: publish
-druid:
-  datasource:
-    url: jdbc:mysql://localhost:3306/lineage?characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull&amp;autoReconnect=true&allowMultiQueries=true
-    username: root
-    password: root
-#spark 配置
-spark :
-  address : jdbc:hive2://localhost:10000
-  master : --master yarn
-  driver-memory : --driver-memory 2g
-  driver-cores : --driver-cores 1
-  executor-memory : -- executor-memory 2g
-  executor-cores : --executor-cores 1
+## 省略部分
 
 ```
 
 ## 打包部署
-当上面的操作完成后，即可使用`maven`的打包命令进行打包
- **[注：2.4.1及以上版本已经集成启动和关闭的sh启动可以跳过这一部分继续往下看]**
+### 2.4.1及以上版本部署方案
+ **[注：2.4.1及以上版本已经集成启动和关闭的sh]**
+ 
+![在这里插入图片描述](https://img-blog.csdnimg.cn/2019111411090872.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9zY3gtd2hpdGUuYmxvZy5jc2RuLm5ldA==,size_16,color_FFFFFF,t_70)
+
+如果你的 `hera` 使用的是 `2.4.1` 版本以上的，打包后在根目录会出现如图所示的压缩包
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20191114111031525.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9zY3gtd2hpdGUuYmxvZy5jc2RuLm5ldA==,size_16,color_FFFFFF,t_70)
+
+你可以通过 `ssh` 把该包上传到服务器，解压该tar.gz包。然后修改 `config` 目录下的`application.yml` 配置文件，在 `bin` 目录里执行 `start.sh` 脚本即可成功启动`hera`。
+
+### 2.4.1以下版本部署方案
 
 ```
 mvn clean package -Dmaven.test.skip=true -Pdev
@@ -320,18 +184,10 @@ echo 关闭hera成功，pid:$pid
 
 
 ```
- **[注：2.4.1及以上版本已经集成启动和关闭的sh]**
- 
-![在这里插入图片描述](https://img-blog.csdnimg.cn/2019111411090872.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9zY3gtd2hpdGUuYmxvZy5jc2RuLm5ldA==,size_16,color_FFFFFF,t_70)
-
-如果你的 `hera` 使用的是 `2.4.1` 版本以上的，打包后在根目录会出现如图所示的压缩包
-![在这里插入图片描述](https://img-blog.csdnimg.cn/20191114111031525.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9zY3gtd2hpdGUuYmxvZy5jc2RuLm5ldA==,size_16,color_FFFFFF,t_70)
-
-你可以通过 `ssh` 把该包上传到服务器，解压该tar.gz包。然后修改 `config` 目录下的`application.yml` 配置文件，在 `bin` 目录里执行 `start.sh` 脚本即可成功启动`hera`。
 
 
 ## 测试
-此时就登录上了。下面需要做的是在`worker`管理这里添加执行任务的机器`IP`，然后选择一个机器组（组的概念：对于不同的`worker`而言环境可能不同，可能有的用来执行`spark`任务，有的用来执行`hadoop`任务，有的只是开发等等。当创建任务的时候根据任务类型选择一个组，要执行任务的时候会发送到相应的组的机器上执行任务）。
+默认登陆地址为:http://localhost:8080/hera 下面需要做的是在`worker`管理这里添加执行任务的机器`IP`，然后选择一个机器组（组的概念：对于不同的`worker`而言环境可能不同，可能有的用来执行`spark`任务，有的用来执行`hadoop`任务，有的只是开发等等。当创建任务的时候根据任务类型选择一个组，要执行任务的时候会发送到相应的组的机器上执行任务）。
 对于执行`work`的机器`ip`调试时可以是`master`，生产环境建议不要让`master`执行任务。如果要执行`map-reduce`或者`spark`任务，要保证你的`work`具有这些集群的客户端。
 那么我们就在`work`管理页面增加要执行的`work`地址以及机器组。
 

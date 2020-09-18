@@ -11,6 +11,8 @@ import com.dfire.core.job.UploadEmrFileJob;
 import com.dfire.core.job.UploadLocalFileJob;
 import com.dfire.logs.ErrorLog;
 import com.dfire.logs.HeraLog;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
+import springfox.documentation.annotations.ApiIgnore;
 
 import java.io.File;
 import java.util.HashMap;
@@ -30,13 +33,15 @@ import java.util.Map;
  */
 @Controller
 @RequestMapping("/uploadResource")
+@Api("资源上传接口")
 public class UploadResourceController extends BaseHeraController {
 
 
     @RequestMapping(value = "/upload", method = RequestMethod.POST)
     @ResponseBody
     @Transactional(rollbackFor = Exception.class)
-    public JsonResponse uploadResource(MultipartHttpServletRequest request) {
+    @ApiOperation("上传接口")
+    public JsonResponse uploadResource(@ApiIgnore MultipartHttpServletRequest request) {
         Map<String, MultipartFile> fileMap = request.getFileMap();
         String fileName = null;
         String newFilePath;

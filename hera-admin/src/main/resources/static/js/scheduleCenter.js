@@ -931,13 +931,14 @@ layui.use(['table'], function () {
 
     $("#copyJobModal .add-btn").click(function () {
         $.ajax({
-            url: base_url + "/scheduleCenter/copyJobFromExistsJob.do",
+            url: base_url + "/scheduleCenter/copyJob",
             type: "post",
             data: {
                 jobId: focusId
             },
             success: function (res) {
                 if (res.success === true) {
+                    setCurrentId(res.message)
                     window.location.reload();
                     layer.msg(res.message);
                 } else {

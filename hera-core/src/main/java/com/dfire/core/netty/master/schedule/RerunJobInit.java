@@ -53,7 +53,7 @@ public class RerunJobInit extends ScheduledChore {
             int allAction = 0;
             Long startAction = ActionUtil.getActionByDateStr(rerunVo.getStartTime());
             Long endAction = ActionUtil.getActionByDateStr(rerunVo.getEndTime());
-            Long formatNum = 10000000000L;
+            long formatNum = 10000000000L;
             master.getMasterContext().getHeraJobActionService().deleteAction(startAction / formatNum * formatNum, endAction / formatNum * formatNum, rerunVo.getJobId());
             while (startTime.compareTo(endTime) <= 0) {
                 Map<Long, HeraAction> actionMap = new HashMap<>(8);
@@ -72,7 +72,9 @@ public class RerunJobInit extends ScheduledChore {
             rerunVo.getExtra().put(Constants.ACTION_DONE, Boolean.TRUE.toString());
             rerunVo.getExtra().put(Constants.ACTION_PROCESS_NUM, "0");
             rerunVo.getExtra().put(Constants.ACTION_ALL_NUM, String.valueOf(allAction));
-            rerunVo.setIsEnd(null);
+            if (allAction == 0) {
+                rerunVo.setIsEnd(1);
+            }
             master.getMasterContext().getHeraRerunService().updateById(rerunVo);
             MonitorLog.info("添加重跑任务{}成功,start:{},end:{}", rerunVo.getJobId(), rerunVo.getStartTime(), rerunVo.getEndTime());
         }

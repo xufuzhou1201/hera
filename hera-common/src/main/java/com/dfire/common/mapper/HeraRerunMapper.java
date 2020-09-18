@@ -59,4 +59,14 @@ public interface HeraRerunMapper {
     @Select("select count(1) from " + TABLE + "where job_id=#{jobId} and is_end = #{isEnd}")
     Integer selectCountByJob(@Param("jobId") Integer jobId,
                              @Param("isEnd") int isEnd);
+
+
+    @Select("select " + COLUMN + " from " + TABLE + " where is_end = #{status} order by id desc limit #{startPos},#{limit} ")
+    List<HeraRerun> selectAllByStatus(@Param("startPos") Integer startPos,
+                                      @Param("limit") Integer limit,
+                                      @Param("status") Integer status);
+
+
+    @Select("select count(1) from " + TABLE + " where is_end = #{status}")
+    Integer selectCountByStatus(Integer status);
 }

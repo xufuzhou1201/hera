@@ -1,5 +1,7 @@
 package com.dfire.common.entity;
 
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,11 +16,13 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@ApiModel("机器组管理对象")
 public class HeraHostRelation {
 
+    @ApiModelProperty("id")
     private Integer id;
-
+    @ApiModelProperty("ip")
     private String host;
-
+    @ApiModelProperty("机器组id")
     private Integer hostGroupId;
 }

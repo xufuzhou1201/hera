@@ -13,6 +13,7 @@ import com.dfire.common.service.HeraJobService;
 import com.dfire.common.service.HeraPermissionService;
 import com.dfire.common.util.StringUtil;
 import com.dfire.core.util.JwtUtils;
+import com.dfire.logs.ErrorLog;
 import com.dfire.logs.HeraLog;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -21,6 +22,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -39,6 +41,7 @@ public class HeraAspect {
 
 
     @Autowired
+    @Qualifier("heraJobMemoryService")
     private HeraJobService heraJobService;
 
     @Autowired
@@ -113,6 +116,10 @@ public class HeraAspect {
             }
         } else {
             Object param = getRunId(joinPoint, runAuth.idIndex());
+
+            if (param == null) {
+                throw new IllegalArgumentException("参数格式错误");
+            }
             if (runAuthType == RunAuthType.GROUP && param instanceof String) {
                 runId = StringUtil.getGroupId((String) param);
             } else {
@@ -132,6 +139,11 @@ public class HeraAspect {
     private void checkPermission(String owner, Integer id, RunAuthType runAuthType) throws NoPermissionException {
         String errorMsg = "抱歉，您没有权限进行此操作";
         if (owner == null || id == null) {
+            if (owner == null) {
+                ErrorLog.warn("owner为null，无权限执行");
+            } else {
+                ErrorLog.warn("id为null,无权限执行");
+            }
             throw new NoPermissionException(errorMsg);
         }
         if (isAdmin(owner)) {
@@ -141,20 +153,19 @@ public class HeraAspect {
             throw new IllegalArgumentException("RunAuthType 参数有误");
         }
         if (RunAuthType.JOB == runAuthType) {
-            HeraJob job = heraJobService.findById(id);
-            if (!(job != null && owner.equals(job.getOwner()))) {
+            HeraJob job = heraJobService.findMemById(id);
+            if (job != null && !job.getOwner().equals(owner)) {
                 HeraPermission permission = heraPermissionService.findByCond(id, owner, runAuthType.getName());
                 if (permission == null) {
-                    permission = heraPermissionService.findByCond(job.getGroupId(), owner, runAuthType.getName());
-                    if (permission == null) {
-                        throw new NoPermissionException(errorMsg);
-                    }
+                    ErrorLog.warn(owner + "无权限操作任务:" + id);
+                    throw new NoPermissionException(errorMsg);
                 }
             }
         } else if (RunAuthType.GROUP == runAuthType) {
             HeraGroup group = heraGroupService.findById(id);
-            if (!(group != null && owner.equals(group.getOwner()))) {
+            if (group != null && !owner.equals(group.getOwner())) {
                 if (heraPermissionService.findByCond(id, owner, runAuthType.getName()) == null) {
+                    ErrorLog.warn(owner + "无权限操作组:" + id);
                     throw new NoPermissionException(errorMsg);
                 }
             }

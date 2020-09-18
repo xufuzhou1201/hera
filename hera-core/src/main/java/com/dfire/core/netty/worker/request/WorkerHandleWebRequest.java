@@ -2,12 +2,14 @@ package com.dfire.core.netty.worker.request;
 
 import com.dfire.config.HeraGlobalEnv;
 import com.dfire.core.exception.RemotingException;
+import com.dfire.core.netty.enums.MessageEnum;
 import com.dfire.core.netty.listener.WorkResponseListener;
 import com.dfire.core.netty.util.AtomicIncrease;
 import com.dfire.core.netty.worker.WorkContext;
 import com.dfire.logs.ErrorLog;
 import com.dfire.logs.SocketLog;
 import com.dfire.protocol.JobExecuteKind.ExecuteKind;
+import com.dfire.protocol.RpcPair;
 import com.dfire.protocol.RpcSocketMessage.SocketMessage;
 import com.dfire.protocol.RpcWebOperate.WebOperate;
 import com.dfire.protocol.RpcWebRequest.WebRequest;
@@ -74,6 +76,14 @@ public class WorkerHandleWebRequest {
                 .build(), workContext, "三个小时未获得master所有work信息");
     }
 
+    public static Future<WebResponse> increaseActionPriority(WorkContext workContext, Long actionId) {
+        return buildMessage(WebRequest.newBuilder()
+                .setRid(AtomicIncrease.getAndIncrement())
+                .setOperate(WebOperate.UpdateConf)
+                .setBody(RpcPair.Pair.newBuilder().setType(MessageEnum.UPDATE_TASK_PRIORITY.getType()).setValue(String.valueOf(actionId)).build().toByteString())
+                .build(), workContext, "三个小时未获得master所有work信息");
+    }
+
     private static Future<WebResponse> buildMessage(WebRequest request, WorkContext workContext, String errorMsg) {
         CountDownLatch latch = new CountDownLatch(1);
         WorkResponseListener responseListener = new WorkResponseListener(request, false, latch, null);
@@ -100,4 +110,12 @@ public class WorkerHandleWebRequest {
 
     }
 
+
+    public static Future<WebResponse> updateWorkFromWeb(WorkContext workContext) {
+        return buildMessage(WebRequest.newBuilder()
+                .setRid(AtomicIncrease.getAndIncrement())
+                .setOperate(WebOperate.UpdateConf)
+                .setBody(RpcPair.Pair.newBuilder().setType(MessageEnum.UPDATE_WORK_INFO.getType()).build().toByteString())
+                .build(), workContext, "三个小时未获得master所有work信息");
+    }
 }

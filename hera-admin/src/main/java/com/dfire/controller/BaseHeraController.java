@@ -4,10 +4,12 @@ import com.dfire.common.constants.Constants;
 import com.dfire.common.entity.HeraRecord;
 import com.dfire.common.enums.LogTypeEnum;
 import com.dfire.common.enums.RecordTypeEnum;
+import com.dfire.common.enums.RunAuthType;
 import com.dfire.common.service.HeraRecordService;
 import com.dfire.common.util.NamedThreadFactory;
 import com.dfire.config.HeraGlobalEnv;
 import com.dfire.core.util.JwtUtils;
+import com.dfire.logs.ErrorLog;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
@@ -27,6 +29,8 @@ public abstract class BaseHeraController {
     private static ThreadLocal<HttpServletRequest> requestThread = new ThreadLocal<>();
     @Autowired
     protected HeraRecordService recordService;
+    @Autowired
+    ScheduleCenterController scheduleCenterController;
 
     {
         poolExecutor = new ThreadPoolExecutor(
@@ -36,6 +40,12 @@ public abstract class BaseHeraController {
 
     public static void remove() {
         requestThread.remove();
+    }
+
+    public static void set(HttpServletRequest request) {
+        if(requestThread.get() == null) {
+            requestThread.set(request);
+        }
     }
 
     protected String getIp() {
@@ -139,8 +149,19 @@ public abstract class BaseHeraController {
                 .build());
     }
 
+    protected void checkPermission(Integer jobId, RunAuthType type) {
+        scheduleCenterController.doAspectAuth(jobId, type);
+    }
+
+
     protected void doAsync(Runnable runnable) {
-        poolExecutor.execute(runnable);
+        poolExecutor.execute(() -> {
+            try {
+                runnable.run();
+            } catch (Exception e) {
+                ErrorLog.error("异步执行异常", e);
+            }
+        });
     }
 
     protected boolean isAdmin() {

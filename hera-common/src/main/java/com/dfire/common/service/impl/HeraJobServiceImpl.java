@@ -6,9 +6,11 @@ import com.dfire.common.entity.HeraJob;
 import com.dfire.common.entity.HeraJobHistory;
 import com.dfire.common.entity.model.JsonResponse;
 import com.dfire.common.entity.vo.HeraJobTreeNodeVo;
+import com.dfire.common.enums.RunAuthType;
 import com.dfire.common.mapper.HeraJobMapper;
 import com.dfire.common.service.HeraGroupService;
 import com.dfire.common.service.HeraJobHistoryService;
+import com.dfire.common.service.HeraJobMonitorService;
 import com.dfire.common.service.HeraJobService;
 import com.dfire.common.util.ActionUtil;
 import com.dfire.common.util.DagLoopUtil;
@@ -38,6 +40,9 @@ public class HeraJobServiceImpl implements HeraJobService {
     private HeraGroupService groupService;
     @Autowired
     private HeraJobHistoryService heraJobHistoryService;
+
+    @Autowired
+    private HeraJobMonitorService heraJobMonitorService;
 
     @Override
     public int insert(HeraJob heraJob) {
@@ -92,10 +97,10 @@ public class HeraJobServiceImpl implements HeraJobService {
     }
 
     @Override
-    public Map<String, List<HeraJobTreeNodeVo>> buildJobTree(String owner) {
+    public Map<String, List<HeraJobTreeNodeVo>> buildJobTree(String owner, Integer ssoId) {
         Map<String, List<HeraJobTreeNodeVo>> treeMap = new HashMap<>(2);
         List<HeraGroup> groups = Optional.of(groupService.getAll()).get();
-        List<HeraJob> jobs = Optional.of(this.getAll()).get();
+        List<HeraJob> jobs = Optional.of(getAll()).get();
         Map<String, HeraJobTreeNodeVo> groupMap = new HashMap<>(groups.size());
         List<HeraJobTreeNodeVo> myGroupList = new ArrayList<>();
         // 建立所有任务的树
@@ -121,6 +126,7 @@ public class HeraJobServiceImpl implements HeraJobService {
         Set<HeraJobTreeNodeVo> myGroupSet = new HashSet<>();
         //建立我的任务的树
         List<HeraJobTreeNodeVo> myNodeVos = new ArrayList<>();
+        Set<Integer> myJobIds = new HashSet<>(heraJobMonitorService.findBySsoId(ssoId));
         jobs.stream().filter(job -> job.getIsValid() == 1).forEach(job -> {
             HeraJobTreeNodeVo build = HeraJobTreeNodeVo.builder()
                     .id(String.valueOf(job.getId()))
@@ -131,7 +137,7 @@ public class HeraJobServiceImpl implements HeraJobService {
                     .name(job.getName() + Constants.LEFT_BRACKET + job.getId() + Constants.RIGHT_BRACKET)
                     .build();
             allNodes.add(build);
-            if (owner.equals(job.getOwner().trim())) {
+            if (myJobIds.contains(job.getId())) {
                 getPathGroup(myGroupSet, build.getParent(), groupMap);
                 myNodeVos.add(build);
             }
@@ -276,18 +282,6 @@ public class HeraJobServiceImpl implements HeraJobService {
     }
 
 
-    @Override
-	public HeraJob copyJobFromExistsJob(Integer jobId) {
-    	HeraJob job = heraJobMapper.findById(jobId);
-    	if(job==null)
-    		return null;
-    	Integer maxJobId = heraJobMapper.selectMaxId();
-    	job.setId(maxJobId.intValue()+1);
-    	job.setName(job.getName()+"_copy");
-    	job.setAuto(0);
-    	heraJobMapper.insert(job);
-		return job;
-	}
 
 	/**
      * 建立今日任务执行 Map映射 便于获取
@@ -458,6 +452,83 @@ public class HeraJobServiceImpl implements HeraJobService {
         }
 
         return directionGraph;
+    }
+
+    @Override
+    public String checkDependencies(Integer id, RunAuthType type) {
+        List<HeraJob> allJobs = this.getAllJobDependencies();
+        if (type == RunAuthType.GROUP) {
+
+            HeraGroup heraGroup = groupService.findById(id);
+            if (heraGroup == null) {
+                return "组不存在";
+            } else if (heraGroup.getDirectory() == 1) {
+                //如果是小目录
+                List<HeraJob> jobList = this.findByPid(id).stream()
+                        .filter(job -> job.getIsValid() == 1)
+                        .collect(Collectors.toList());
+                if (jobList.size() == 0) {
+                    return null;
+                }
+                StringBuilder openJob = new StringBuilder("无法删除存在任务的目录:[ ");
+                for (HeraJob job : jobList) {
+                    openJob.append(job.getId()).append(" ");
+                }
+                openJob.append("]");
+                return openJob.toString();
+            } else {
+                //如果是大目录
+                List<HeraGroup> parent = groupService.findByParent(id).stream()
+                        .filter(group -> group.getExisted() == 1)
+                        .collect(Collectors.toList());
+                if (parent.size() == 0) {
+                    return null;
+                }
+                StringBuilder openGroup = new StringBuilder("无法删除存在目录的目录:[ ");
+                for (HeraGroup group : parent) {
+                    if (group.getExisted() == 1) {
+                        openGroup.append(group.getId()).append(" ");
+                    }
+                }
+                openGroup.append("]");
+                return openGroup.toString();
+            }
+
+        } else {
+            HeraJob job = this.findById(id);
+            if (job.getAuto() == 1) {
+                return "无法删除正在开启的任务";
+            }
+            boolean canDelete = true;
+            boolean isFirst = true;
+            String deleteJob = String.valueOf(job.getId());
+            StringBuilder dependenceJob = new StringBuilder("任务依赖: ");
+            String[] dependenceJobs;
+            for (HeraJob allJob : allJobs) {
+                if (StringUtils.isNotBlank(allJob.getDependencies())) {
+                    dependenceJobs = allJob.getDependencies().split(",");
+                    for (String jobId : dependenceJobs) {
+                        if (jobId.equals(deleteJob)) {
+                            if (canDelete) {
+                                canDelete = false;
+                            }
+                            if (isFirst) {
+                                isFirst = false;
+                                dependenceJob.append("[").append(job.getId()).append(" -> ").append(allJob.getId()).append(" ");
+                            } else {
+                                dependenceJob.append(allJob.getId()).append(" ");
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            dependenceJob.append("]").append("\n");
+            if (!canDelete) {
+                return dependenceJob.toString();
+            }
+            return null;
+        }
     }
 
 

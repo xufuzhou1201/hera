@@ -11,6 +11,9 @@ import com.dfire.common.service.HeraUserService;
 import com.dfire.common.util.StringUtil;
 import com.dfire.config.UnCheckLogin;
 import com.dfire.core.util.JwtUtils;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import springfox.documentation.annotations.ApiIgnore;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
@@ -33,6 +37,7 @@ import java.util.stream.Collectors;
  * @desc 登陆控制器
  */
 
+@Api("登陆控制器")
 @Controller
 public class LoginController extends BaseHeraController {
 
@@ -43,22 +48,22 @@ public class LoginController extends BaseHeraController {
     private HeraSsoService heraSsoService;
 
 
-    @RequestMapping("/")
+    @RequestMapping(value = "/",method = RequestMethod.GET)
     public String toLogin() {
         return "redirect:/login";
     }
 
-    @RequestMapping("/login")
+    @RequestMapping(value = "/login",method = RequestMethod.GET)
     public String login() {
         return "/login";
     }
 
-    @RequestMapping("/login/admin")
+    @RequestMapping(value = "/login/admin",method = RequestMethod.GET)
     public String admin() {
         return "/admin";
     }
 
-    @RequestMapping("/home")
+    @RequestMapping(value = "/home",method = RequestMethod.GET)
     public String index() {
         return "home";
     }
@@ -67,8 +72,11 @@ public class LoginController extends BaseHeraController {
     @ResponseBody
     @RequestMapping(value = "admin/login", method = RequestMethod.POST)
     @ResponseStatus(HttpStatus.OK)
-    public JsonResponse adminLogin(String userName, String password, HttpServletResponse response) {
-        HeraUser user = heraUserService.findByName(userName);
+    @ApiOperation("用户组登陆接口")
+    public JsonResponse adminLogin(@ApiParam(value = "sso对象",required = true)String userName
+            , @ApiParam(value = "密码，32为md5",required = true)String password
+            , @ApiIgnore HttpServletResponse response) {
+        HeraUser user = heraUserService.findByName(userName.split("@")[0]);
         if (user == null) {
             return new JsonResponse(false, "用户不存在");
         }
@@ -96,7 +104,8 @@ public class LoginController extends BaseHeraController {
     @UnCheckLogin
     @ResponseStatus(HttpStatus.CREATED)
     @RequestMapping(value = "admin/register", method = RequestMethod.POST)
-    public JsonResponse adminRegister(HeraUser user) {
+    @ApiOperation("用户组注册接口")
+    public JsonResponse adminRegister(@ApiParam(value = "用户组对象",required = true)HeraUser user) {
         HeraUser check = heraUserService.findByName(user.getName());
         if (check != null) {
             return new JsonResponse(false, "用户名已存在，请更换用户名");
@@ -109,7 +118,10 @@ public class LoginController extends BaseHeraController {
     @UnCheckLogin
     @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "sso/login", method = RequestMethod.POST)
-    public JsonResponse ssoLogin(String userName, String password, HttpServletResponse response) {
+    @ApiOperation("用户登陆接口")
+    public JsonResponse ssoLogin(@ApiParam(value = "sso对象",required = true) String userName
+            ,@ApiParam(value = "密码，32为md5",required = true) String password
+            ,@ApiIgnore HttpServletResponse response) {
         HeraSso heraSso = heraSsoService.findSsoByName(userName);
         if (heraSso == null) {
             return new JsonResponse(false, "用户不存在");
@@ -143,7 +155,8 @@ public class LoginController extends BaseHeraController {
     @UnCheckLogin
     @ResponseStatus(HttpStatus.CREATED)
     @RequestMapping(value = "sso/register", method = RequestMethod.POST)
-    public JsonResponse ssoRegister(HeraSso heraSso) {
+    @ApiOperation("用户注册接口")
+    public JsonResponse ssoRegister(@ApiParam(value = "sso对象",required = true) HeraSso heraSso) {
         heraSso.setName(heraSso.getEmail().substring(0, heraSso.getEmail().indexOf("@")));
         boolean exist = heraSsoService.checkByName(heraSso.getName());
         if (exist) {
@@ -157,6 +170,7 @@ public class LoginController extends BaseHeraController {
     @UnCheckLogin
     @ResponseStatus(HttpStatus.OK)
     @RequestMapping(value = "sso/groups", method = RequestMethod.GET)
+    @ApiOperation("查询用户组列表")
     public JsonResponse ssoGroups() {
         List<HeraUser> users = heraUserService.getAll();
         if (users == null || users.size() == 0) {

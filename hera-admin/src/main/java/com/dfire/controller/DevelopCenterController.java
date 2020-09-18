@@ -5,22 +5,28 @@ import com.dfire.common.entity.HeraDebugHistory;
 import com.dfire.common.entity.HeraFile;
 import com.dfire.common.entity.model.JsonResponse;
 import com.dfire.common.enums.RecordTypeEnum;
-import com.dfire.common.exception.HeraException;
 import com.dfire.common.service.HeraDebugHistoryService;
 import com.dfire.common.service.HeraFileService;
 import com.dfire.config.HeraGlobalEnv;
 import com.dfire.core.netty.worker.WorkClient;
 import com.dfire.logs.MonitorLog;
 import com.dfire.protocol.JobExecuteKind;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.util.*;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 /**
  * @author: <a href="mailto:lingxiao@2dfire.com">凌霄</a>
@@ -29,6 +35,7 @@ import java.util.concurrent.ExecutionException;
  */
 @Controller
 @RequestMapping("/developCenter")
+@Api("开发中心接口")
 public class DevelopCenterController extends BaseHeraController {
 
     @Autowired
@@ -40,20 +47,23 @@ public class DevelopCenterController extends BaseHeraController {
     private WorkClient workClient;
 
 
-    @RequestMapping
+    @RequestMapping(method = RequestMethod.GET)
+    @ApiOperation("页面跳转")
     public String dev() {
         return "developCenter/developCenter.index";
     }
 
     @RequestMapping(value = "/init", method = RequestMethod.POST)
     @ResponseBody
+    @ApiOperation("获取开发中心个人文档和所有文档")
     public JsonResponse initFileTree() {
         return new JsonResponse(true, heraFileService.buildFileTree(getOwner()));
     }
 
     @RequestMapping(value = "/addFile", method = RequestMethod.GET)
     @ResponseBody
-    public JsonResponse addFileAndFolder(HeraFile heraFile) {
+    @ApiOperation("添加新的脚本")
+    public JsonResponse addFileAndFolder(@ApiParam(value = "file对象", required = true) HeraFile heraFile) {
         Integer parent = heraFile.getParent();
         HeraFile parentFile = heraFileService.findById(parent);
         if (Constants.FILE_ALL_NAME.equals(parentFile.getOwner())) {
@@ -69,13 +79,15 @@ public class DevelopCenterController extends BaseHeraController {
 
     @RequestMapping(value = "/find", method = RequestMethod.GET)
     @ResponseBody
-    public JsonResponse getHeraFile(HeraFile heraFile) {
+    @ApiOperation("查询脚本内容")
+    public JsonResponse getHeraFile(@ApiParam(value = "file对象", required = true) HeraFile heraFile) {
         return new JsonResponse(true, heraFileService.findById(heraFile.getId()));
     }
 
     @RequestMapping(value = "/delete", method = RequestMethod.GET)
     @ResponseBody
-    public JsonResponse delete(HeraFile heraFile) {
+    @ApiOperation("删除脚本")
+    public JsonResponse delete(@ApiParam(value = "file对象", required = true) HeraFile heraFile) {
         HeraFile file = heraFileService.findById(heraFile.getId());
         if (Constants.FILE_SELF.equals(file.getName())) {
             return new JsonResponse(false, "无法删除个人文档");
@@ -89,7 +101,8 @@ public class DevelopCenterController extends BaseHeraController {
 
     @RequestMapping(value = "/rename", method = RequestMethod.GET)
     @ResponseBody
-    public JsonResponse rename(HeraFile heraFile) {
+    @ApiOperation("脚本重命名")
+    public JsonResponse rename(@ApiParam(value = "file对象", required = true) HeraFile heraFile) {
         return new JsonResponse(true, heraFileService.updateFileName(heraFile) > 0 ? "更新成功" : "更新失败");
     }
 
@@ -102,7 +115,8 @@ public class DevelopCenterController extends BaseHeraController {
      */
     @RequestMapping(value = "/debug", method = RequestMethod.POST)
     @ResponseBody
-    public JsonResponse debug(@RequestBody HeraFile heraFile) throws ExecutionException, InterruptedException {
+    @ApiOperation("执行整个脚本")
+    public JsonResponse debug(@RequestBody @ApiParam(value = "file对象", required = true) HeraFile heraFile) throws ExecutionException, InterruptedException, TimeoutException {
         String owner = getOwner();
         HeraFile file = heraFileService.findById(heraFile.getId());
         if (file == null) {
@@ -129,23 +143,24 @@ public class DevelopCenterController extends BaseHeraController {
      */
     @RequestMapping(value = "/debugSelectCode", method = RequestMethod.POST)
     @ResponseBody
-    public JsonResponse debugSelectCode(@RequestBody HeraFile heraFile) throws HeraException, ExecutionException, InterruptedException {
+    @ApiOperation("执行选中脚本")
+    public JsonResponse debugSelectCode(@RequestBody @ApiParam(value = "file对象", required = true) HeraFile heraFile) throws ExecutionException, InterruptedException, TimeoutException {
         String owner = getOwner();
         HeraFile file = heraFileService.findById(heraFile.getId());
         file.setContent(heraFile.getContent());
         String name = file.getName();
         HeraDebugHistory history = HeraDebugHistory.builder()
+                .jobId(file.getJobId())
                 .fileId(file.getId())
                 .script(heraFile.getContent())
                 .startTime(new Date())
                 .owner(owner)
                 .hostGroupId(file.getHostGroupId() == 0 ? HeraGlobalEnv.defaultWorkerGroup : file.getHostGroupId())
                 .build();
-
         return executeJob(name, history, getSsoName());
     }
 
-    private JsonResponse executeJob(String name, HeraDebugHistory history, String ssoName) throws ExecutionException, InterruptedException {
+    private JsonResponse executeJob(String name, HeraDebugHistory history, String ssoName) throws ExecutionException, InterruptedException, TimeoutException {
         int suffixIndex = name.lastIndexOf(Constants.POINT);
         if (suffixIndex == -1) {
             return new JsonResponse(false, "无后缀名,请设置支持的后缀名[.sh .hive .spark]");
@@ -180,7 +195,8 @@ public class DevelopCenterController extends BaseHeraController {
      */
     @RequestMapping(value = "findDebugHistory", method = RequestMethod.GET)
     @ResponseBody
-    public JsonResponse findDebugHistory(Integer fileId) {
+    @ApiOperation("查看执行历史记录")
+    public JsonResponse findDebugHistory(@ApiParam(value = "fileid", required = true) Integer fileId) {
         return new JsonResponse(true, debugHistoryService.findByFileId(fileId));
     }
 
@@ -192,21 +208,24 @@ public class DevelopCenterController extends BaseHeraController {
      */
     @RequestMapping(value = "/cancelJob", method = RequestMethod.GET)
     @ResponseBody
-    public JsonResponse cancelJob(Long id) throws ExecutionException, InterruptedException {
+    @ApiOperation("取消任务")
+    public JsonResponse cancelJob(@ApiParam(value = "fileid", required = true) Long id) throws ExecutionException, InterruptedException, TimeoutException {
         return new JsonResponse(true, workClient.cancelJobFromWeb(JobExecuteKind.ExecuteKind.DebugKind, id));
     }
 
 
     @RequestMapping(value = "/getLog", method = RequestMethod.GET)
     @ResponseBody
-    public JsonResponse getJobLog(Integer id) {
+    @ApiOperation("获取日志")
+    public JsonResponse getJobLog(@ApiParam(value = "fileid", required = true) Integer id) {
         return new JsonResponse(true, debugHistoryService.findLogById(id));
     }
 
 
     @RequestMapping(value = "/check", method = RequestMethod.GET)
     @ResponseBody
-    public JsonResponse check(Integer id) {
+    @ApiOperation("权限检测")
+    public JsonResponse check(@ApiParam(value = "fileid", required = true) Integer id) {
         if (checkPermission(id)) {
             return new JsonResponse(true, "查询成功", true);
         } else {
@@ -216,7 +235,10 @@ public class DevelopCenterController extends BaseHeraController {
 
     @RequestMapping(value = "/moveNode", method = RequestMethod.POST)
     @ResponseBody
-    public JsonResponse moveNode(Integer id, Integer parent, Integer lastParent) {
+    @ApiOperation("节点移动")
+    public JsonResponse moveNode(@ApiParam(value = "fileid", required = true) Integer id
+            , @ApiParam(value = "file移动前父目录id", required = true) Integer parent
+            , @ApiParam(value = "file移动后父目录id", required = true) Integer lastParent) {
         if (!checkPermission(id)) {
             return new JsonResponse(false, "无权限，移动失败");
         }
@@ -231,7 +253,7 @@ public class DevelopCenterController extends BaseHeraController {
     }
 
     private boolean checkPermission(Integer id) {
-        if (HeraGlobalEnv.getAdmin().equals(getOwner())) {
+        if (isAdmin()) {
             return true;
         }
         HeraFile heraFile = heraFileService.findById(id);
@@ -240,9 +262,13 @@ public class DevelopCenterController extends BaseHeraController {
 
     @RequestMapping(value = "saveScript", method = RequestMethod.POST)
     @ResponseBody
-    public JsonResponse saveScript(@RequestBody HeraFile heraFile) {
+    @ApiOperation("保存脚本")
+    public JsonResponse saveScript(@RequestBody @ApiParam(value = "file对象", required = true) HeraFile heraFile) {
         boolean result = heraFileService.updateContent(heraFile) > 0;
         return new JsonResponse(result, result ? "保存成功" : "保存失败");
     }
+
+
+
 
 }

@@ -16,6 +16,9 @@ import com.dfire.common.service.HeraUserService;
 import com.dfire.common.util.ActionUtil;
 import com.dfire.common.util.Pair;
 import com.dfire.config.HeraGlobalEnv;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -33,6 +36,7 @@ import java.util.stream.Collectors;
  * @create 2019/07/17
  */
 @Controller
+@Api(value = "历史记录查看接口")
 @RequestMapping("/record")
 public class RecordController extends BaseHeraController {
 
@@ -51,7 +55,8 @@ public class RecordController extends BaseHeraController {
 
     @RequestMapping(value = "/list", method = RequestMethod.GET)
     @ResponseBody
-    public TableResponse listRecord(TablePageForm pageForm) {
+    @ApiOperation("所有历史查看")
+    public TableResponse listRecord(@ApiParam(value = "分页", required = true) TablePageForm pageForm) {
         String ownerName;
         boolean isAdmin = HeraGlobalEnv.getAdmin().equals(ownerName = getOwner());
 
@@ -69,7 +74,7 @@ public class RecordController extends BaseHeraController {
             recordVo.setType(RecordTypeEnum.parseById(record.getType()).getType());
             if (isAdmin) {
                 if (!cacheOwner.containsKey(record.getGid())) {
-                    cacheOwner.put(record.getGid(), heraUserService.findById(record.getGid()).getName());
+                    cacheOwner.put(record.getGid(), Optional.of(heraUserService.findById(record.getGid())).map(HeraUser::getName).orElse("none"));
                 }
                 recordVo.setGName(cacheOwner.get(record.getGid()));
             } else {
@@ -83,8 +88,10 @@ public class RecordController extends BaseHeraController {
 
     @RequestMapping(value = "/find", method = RequestMethod.GET)
     @ResponseBody
+    @ApiOperation("根据类型查询历史记录")
     @SuppressWarnings("unchecked")
-    public JsonResponse getRecord(PageHelper pageHelper) {
+    public JsonResponse getRecord(@ApiParam(value = "分页", required = true) PageHelper pageHelper
+            ) {
         Map<Integer, String> cacheOwner = new HashMap<>(2);
         Map<String, Object> res = recordService.findPageByLogId(pageHelper);
         String rows = "rows";
@@ -107,7 +114,10 @@ public class RecordController extends BaseHeraController {
 
     @RequestMapping("/now")
     @ResponseBody
-    public JsonResponse findNow(Integer logId, String logType, String type) {
+    @ApiOperation("查询记录的最新状态")
+    public JsonResponse findNow(@ApiParam(value = "记录id", required = true) Integer logId
+            , @ApiParam(value = "记录类型:job,group,debug,upload,user", required = true) String logType
+            , @ApiParam(value = "操作类型:RecordTypeEnum", required = true) String type) {
         LogTypeEnum typeEnum = LogTypeEnum.parseByName(logType);
         JSONObject resData = new JSONObject();
         String content = "";

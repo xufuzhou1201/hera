@@ -162,7 +162,7 @@ public class Constants {
 
     public final static String HERA_SCRIPT_ECHO = "hera.script.echo";
 
-    public final static String KAFKA_TOPIC = "sigmax_han";
+    public final static String KAFKA_TOPIC = "hera_notice";
 
     public final static String ACTION_DONE = "action_done";
 
@@ -174,15 +174,32 @@ public class Constants {
 
     public final static String RERUN_THREAD = "rerun_thread";
 
+    public final static String RERUN_FAILED = "rerun_failed";
+
     public final static String RERUN_ID = "rerun_id";
 
+    public final static String LAST_RERUN_ID = "last_rerun_id";
+
     public final static String APP_ID = "applicationId";
+    public final static String HADOOP_ID = "hadoopJobId";
+    public final static String FILE_CONTENT = "fileContent";
 
     public final static String EMR_ADDRESS = "emr_address";
 
     public final static String COLON = ":";
 
     public final static String SECRET_PREFIX = "secret.";
+
+    public final static String RERUN_COUNT = "single";
+    public final static String RERUN_INDEX = "index";
+
+    public final static String RERUN_START_TIME = "startTime_";
+
+    public final static String RERUN_END_TIME = "endTime_";
+
+    public final static String RUN_FIXED_HOST = "run_fixed_host";
+
+    public final static String FILE_COUNT_ECHO = "输出表最后一个分区统计信息:";
 
 
 }

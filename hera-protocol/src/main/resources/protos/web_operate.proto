@@ -29,4 +29,6 @@ enum WebOperate {
     //获得所有机器信息
     GetAllWorkInfo = 6;
 
+    UpdateConf = 7;
+
 }

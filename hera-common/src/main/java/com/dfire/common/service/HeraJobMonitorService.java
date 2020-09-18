@@ -1,9 +1,11 @@
 package com.dfire.common.service;
 
 import com.dfire.common.entity.HeraJobMonitor;
+import com.dfire.common.entity.HeraSso;
 import com.dfire.common.entity.vo.HeraJobMonitorVo;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * @author xiaosuda
@@ -18,9 +20,13 @@ public interface HeraJobMonitorService {
 
     HeraJobMonitor findByJobId(Integer jobId);
 
+    Set<HeraSso> getMonitorUser(Integer jobId);
+
     List<HeraJobMonitor> findAll();
 
     List<HeraJobMonitorVo> findAllVo();
 
     boolean updateMonitor(String userIds, Integer jobId);
+
+    List<Integer> findBySsoId(Integer ssoId);
 }
