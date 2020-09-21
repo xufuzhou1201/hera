@@ -120,7 +120,8 @@ druid:
  
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/2019111411090872.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9zY3gtd2hpdGUuYmxvZy5jc2RuLm5ldA==,size_16,color_FFFFFF,t_70)
 
-如果你的 `hera` 使用的是 `2.4.1` 版本以上的，打包后在根目录会出现如图所示的压缩包
+如果你的 `hera` 使用的是 `2.4.1` 版本以上的，使用maven执行 mvn clean package -Dmaven.test.skip=true -Pdev
+ 打包后在根目录会出现如图所示的压缩包
 ![在这里插入图片描述](https://img-blog.csdnimg.cn/20191114111031525.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9zY3gtd2hpdGUuYmxvZy5jc2RuLm5ldA==,size_16,color_FFFFFF,t_70)
 
 你可以通过 `ssh` 把该包上传到服务器，解压该tar.gz包。然后修改 `config` 目录下的`application.yml` 配置文件，在 `bin` 目录里执行 `start.sh` 脚本即可成功启动`hera`。
