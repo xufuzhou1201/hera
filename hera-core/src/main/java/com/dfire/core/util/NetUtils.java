@@ -2,6 +2,7 @@ package com.dfire.core.util;
 
 import com.dfire.logs.ErrorLog;
 
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.Enumeration;
@@ -28,10 +29,13 @@ public class NetUtils {
             }
             for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements(); ) {
                 NetworkInterface anInterface = en.nextElement();
+                if (!anInterface.getName().contains("eth0")) {
+                    continue;
+                }
                 for (Enumeration<InetAddress> addresses = anInterface.getInetAddresses(); addresses.hasMoreElements(); ) {
                     InetAddress inetAddress = addresses.nextElement();
                     // 排除loopback类型地址
-                    if (!inetAddress.isLoopbackAddress()) {
+                    if (!inetAddress.isLoopbackAddress() && !(inetAddress instanceof Inet6Address)) {
                         if (inetAddress.isSiteLocalAddress()) {
                             return inetAddress.getHostAddress();
                         }
