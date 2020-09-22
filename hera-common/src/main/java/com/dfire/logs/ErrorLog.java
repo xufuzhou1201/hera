@@ -3,7 +3,6 @@ package com.dfire.logs;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- *
  * @author xiaosuda
  * @date 2018/11/26
  */
@@ -25,6 +24,10 @@ public class ErrorLog {
 
     public static void warn(String format, Object... arguments) {
         log.warn(format, arguments);
+    }
+
+    public static void error(Throwable e) {
+        log.error(e.getMessage(), e);
     }
 
 

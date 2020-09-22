@@ -201,5 +201,11 @@ public class Constants {
 
     public final static String FILE_COUNT_ECHO = "输出表最后一个分区统计信息:";
 
+    public final static String ANYHOST_VALUE = "0.0.0.0";
+
+    public final static String LOCALHOST_KEY = "localhost";
+
+    public final static String LOCALHOST_VALUE = "127.0.0.1";
+
 
 }
