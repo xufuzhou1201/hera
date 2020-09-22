@@ -178,6 +178,7 @@
                         <exclude>config/*.yml</exclude>
                         <exclude>config/*.xml</exclude>
                         <exclude>config/*.yaml</exclude>
+                        <exclude>config/*.properties</exclude>
                     </excludes>
                 </configuration>
             </plugin>
