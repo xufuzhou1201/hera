@@ -54,6 +54,7 @@
                 <include>*.yaml</include>
                 <include>*.yml</include>
                 <include>*.xml</include>
+                <include>*.properties</include>
             </includes>
             <fileMode>600</fileMode>
             <outputDirectory>/config</outputDirectory>
