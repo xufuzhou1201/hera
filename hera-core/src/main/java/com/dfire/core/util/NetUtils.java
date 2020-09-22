@@ -1,5 +1,6 @@
 package com.dfire.core.util;
 
+import com.dfire.common.constants.Constants;
 import com.dfire.logs.ErrorLog;
 import com.dfire.logs.HeraLog;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,10 @@ public class NetUtils {
     private static String LOCAL_ADDRESS = null;
 
     public static String getLocalAddress() {
+        String ip = FileUtils.getKey(Constants.SERVER_KEY);
+        if (ip != null && !ip.equals(LOCAL_ADDRESS)) {
+            return ip;
+        }
         if (LOCAL_ADDRESS != null) {
             return LOCAL_ADDRESS;
         }

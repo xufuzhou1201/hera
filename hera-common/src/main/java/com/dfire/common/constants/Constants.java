@@ -203,7 +203,7 @@ public class Constants {
 
     public final static String ANYHOST_VALUE = "0.0.0.0";
 
-    public final static String LOCALHOST_KEY = "localhost";
+    public final static String SERVER_KEY = "server.ip";
 
     public final static String LOCALHOST_VALUE = "127.0.0.1";
 
