@@ -59,8 +59,7 @@ public class NetUtils {
                 try {
                     NetworkInterface network = interfaces.nextElement();
                     if (network.isLoopback() || network.isVirtual() || !network.isUp()) {
-                        co
-                                ntinue;
+                        continue;
                     }
                     Enumeration<InetAddress> addresses = network.getInetAddresses();
                     while (addresses.hasMoreElements()) {
