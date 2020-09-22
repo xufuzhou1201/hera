@@ -32,7 +32,7 @@ public class NetUtils {
 
     public static String getLocalAddress() {
         String ip = FileUtils.getKey(Constants.SERVER_KEY);
-        if (ip != null && !ip.equals(LOCAL_ADDRESS)) {
+        if (ip != null && !ip.equals(LOCALHOST_VALUE)) {
             return ip;
         }
         if (LOCAL_ADDRESS != null) {
