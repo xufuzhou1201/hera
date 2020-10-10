@@ -57,7 +57,6 @@ public class MasterHandlerWebResponse {
     public static WebResponse handleWebExecute(MasterContext context, WebRequest request) {
         if (request.getEk() == ExecuteKind.ManualKind || request.getEk() == ExecuteKind.ScheduleKind) {
             Long historyId = Long.parseLong(request.getId());
-
             HeraJobHistory heraJobHistory = context.getHeraJobHistoryService().findById(historyId);
             HeraJobHistoryVo history = BeanConvertUtils.convert(heraJobHistory);
             context.getMaster().run(history, context.getHeraJobService().findById(history.getJobId()));

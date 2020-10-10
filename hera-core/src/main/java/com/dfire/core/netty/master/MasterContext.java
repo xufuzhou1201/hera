@@ -104,33 +104,45 @@ public class MasterContext {
     private boolean isStop;
 
 
-
     public void init() {
+        //主要处理work的请求信息
         threadPool = new ThreadPoolExecutor(
                 0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new SynchronousQueue<>(), new NamedThreadFactory("master-wait-response"), new ThreadPoolExecutor.AbortPolicy());
+        //主要管理master的一些延迟任务处理
         masterSchedule = new ScheduledThreadPoolExecutor(2, new NamedThreadFactory("master-schedule", false));
         masterSchedule.setKeepAliveTime(5, TimeUnit.MINUTES);
         masterSchedule.allowCoreThreadTimeOut(true);
+        //开启quartz服务
         getQuartzSchedulerService().start();
         dispatcher = new Dispatcher();
+        //初始化master端的netty消息handler
         handler = new MasterHandler(this);
+        //初始化master server
         masterServer = new MasterServer(handler);
         masterServer.start(HeraGlobalEnv.getConnectPort());
         master.init(this);
 
+        //master的定时任务管理者
         choreService = new ChoreService(5, "chore-service");
+        //重跑任务初始化
         rerunJobInit = new RerunJobInit(master);
         choreService.scheduledChore(rerunJobInit);
+        //重跑任务启动
         rerunJobLaunch = new RerunJobLaunch(master);
         choreService.scheduledChore(rerunJobLaunch);
+        //信号丢失检测
         lostJobCheck = new LostJobCheck(master, new DateTime().getMinuteOfHour());
         choreService.scheduledChore(lostJobCheck);
+        //心跳检测
         heartCheck = new WorkHeartCheck(master);
         choreService.scheduledChore(heartCheck);
+        //版本生成
         actionInit = new JobActionInit(master);
         choreService.scheduledChore(actionInit);
+        //任务是否完成检测
         finishCheck = new JobFinishCheck(master);
         choreService.scheduledChore(finishCheck);
+        //队列扫描
         queueScan = new JobQueueScan(master);
         choreService.scheduledChoreOnce(queueScan);
         HeraLog.info("end init master content success ");

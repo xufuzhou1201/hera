@@ -624,7 +624,6 @@ public class Master {
      */
     public void run(HeraJobHistoryVo heraJobHistory, HeraJob heraJob) {
         Long actionId = heraJobHistory.getActionId();
-        heraJobHistory.setStatusEnum(StatusEnum.RUNNING);
         //重复job检测
         if (checkJobExists(heraJobHistory, false)) {
             return;
@@ -789,7 +788,6 @@ public class Master {
                         }
                     }
                 }
-
 
             }
         }

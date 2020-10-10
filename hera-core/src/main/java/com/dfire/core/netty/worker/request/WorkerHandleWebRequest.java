@@ -31,7 +31,7 @@ public class WorkerHandleWebRequest {
                 .setOperate(WebOperate.ExecuteJob)
                 .setEk(kind)
                 .setId(String.valueOf(id))
-                .build(), workContext, "[执行]-任务超出3小时未得到master消息返回:" + id);
+                .build(), workContext, "[执行]-任务超出" + HeraGlobalEnv.getRequestTimeout() + "秒未得到master消息返回:" + id);
     }
 
     public static Future<WebResponse> handleWebAction(final WorkContext workContext, ExecuteKind kind, Long id) {
@@ -107,7 +107,6 @@ public class WorkerHandleWebRequest {
             ErrorLog.error("1.WorkerHandleWebRequest: send web request to master exception requestId =" + request.getRid(), e);
         }
         return future;
-
     }
 
 

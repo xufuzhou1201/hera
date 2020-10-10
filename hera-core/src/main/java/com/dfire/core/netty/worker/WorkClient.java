@@ -98,7 +98,6 @@ public class WorkClient {
         if (!clientSwitch.compareAndSet(false, true)) {
             return;
         }
-
         workContext.setWorkClient(this);
         workContext.init();
         eventLoopGroup = new NioEventLoopGroup();

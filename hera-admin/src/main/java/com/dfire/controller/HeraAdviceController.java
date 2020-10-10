@@ -38,7 +38,10 @@ public class HeraAdviceController extends BaseHeraController {
     @RequestMapping(value = "/add", method = RequestMethod.POST)
     @ResponseBody
     @ApiOperation("添加留言接口")
-    public JsonResponse addAdvice(@ApiParam(value = "建议对象",required = true) HeraAdvice heraAdvice) {
+    public JsonResponse addAdvice(@ApiParam(value = "建议对象", required = true) HeraAdvice heraAdvice) {
+        if (heraAdvice.getMsg().contains("<") || heraAdvice.getMsg().contains(">")) {
+            return new JsonResponse(false, "不允许输入特殊符号");
+        }
         boolean res = heraAdviceService.addAdvice(heraAdvice);
         return new JsonResponse(res, res ? "添加成功" : "添加失败");
     }
